@@ -1,0 +1,440 @@
+/* ==========================================================================
+   Parsian Music Academy – custom WordPress login screen
+   ========================================================================== */
+
+body.login.pm-login-page {
+  --pm-bg: #080909;
+  --pm-panel: #0c0d0d;
+  --pm-card: #121310;
+  --pm-gold: #d6a83d;
+  --pm-gold-2: #f2ce73;
+  --pm-gold-rgb: 214, 168, 61;
+  --pm-text: #f2eee6;
+  --pm-muted: #a6a29a;
+  --pm-line: rgba(214, 168, 61, .22);
+  min-height: 100vh;
+  margin: 0;
+  padding: 32px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-x: hidden;
+  color: var(--pm-text);
+  background: var(--pm-bg);
+  font-family: "Vazirmatn", Tahoma, sans-serif;
+  direction: rtl;
+}
+
+body.login.pm-login-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-image: var(--pm-login-bg, none);
+  background-size: cover;
+  background-position: center;
+  opacity: .42;
+  filter: grayscale(.35) saturate(.72);
+  transform: scale(1.03);
+}
+
+body.login.pm-login-page::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(720px 520px at 78% 18%, rgba(var(--pm-gold-rgb), .17), transparent 70%),
+    radial-gradient(640px 460px at 12% 82%, rgba(var(--pm-gold-rgb), .09), transparent 72%),
+    linear-gradient(180deg, rgba(6, 7, 7, .72) 0%, rgba(6, 7, 7, .9) 100%);
+}
+
+body.login.pm-login-page #login {
+  position: relative;
+  z-index: 2;
+  width: min(442px, calc(100vw - 28px));
+  margin: 0;
+  padding: 34px 32px 24px;
+  border: 1px solid var(--pm-line);
+  border-radius: 26px;
+  background: linear-gradient(180deg, rgba(18, 19, 16, .92), rgba(9, 10, 10, .96));
+  box-shadow:
+    0 34px 80px rgba(0, 0, 0, .62),
+    0 0 0 1px rgba(255, 255, 255, .02) inset,
+    0 1px 0 rgba(255, 255, 255, .06) inset;
+  backdrop-filter: blur(18px);
+}
+
+body.login.pm-login-page #login::before {
+  content: "";
+  position: absolute;
+  inset-inline: 32px;
+  top: 0;
+  height: 2px;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(90deg, transparent, var(--pm-gold-2), transparent);
+  opacity: .85;
+}
+
+body.login.pm-login-page #login > h1 {
+  display: none;
+}
+
+.pm-ico {
+  width: 1em;
+  height: 1em;
+  display: inline-block;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vertical-align: -.14em;
+}
+
+/* Brand block */
+.pm-login-brand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin: 0 0 24px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid rgba(255, 255, 255, .07);
+}
+
+.pm-login-brand__mark {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  flex: none;
+  border: 1px solid rgba(var(--pm-gold-rgb), .42);
+  border-radius: 16px;
+  color: var(--pm-gold-2);
+  background:
+    radial-gradient(circle at 30% 20%, rgba(var(--pm-gold-rgb), .3), transparent 65%),
+    #0a0b0b;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .4), 0 0 22px rgba(var(--pm-gold-rgb), .12);
+}
+
+.pm-login-brand__mark .pm-ico {
+  width: 30px;
+  height: 30px;
+  stroke-width: 1.6;
+}
+
+.pm-login-brand__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pm-login-brand__text strong {
+  color: var(--pm-text);
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.pm-login-brand__text small {
+  margin-top: 2px;
+  color: var(--pm-gold);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  direction: ltr;
+  text-align: right;
+}
+
+.pm-login-intro {
+  margin: 0 0 20px;
+}
+
+.pm-login-intro h1 {
+  margin: 0;
+  color: var(--pm-text);
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.pm-login-intro p {
+  margin: 8px 0 0;
+  color: var(--pm-muted);
+  font-size: 12.5px;
+  line-height: 1.9;
+}
+
+/* Form */
+body.login.pm-login-page #loginform {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+body.login.pm-login-page #login form p {
+  margin-bottom: 14px;
+}
+
+body.login.pm-login-page #login form label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--pm-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+body.login.pm-login-page #login form input[type="text"],
+body.login.pm-login-page #login form input[type="password"],
+body.login.pm-login-page #login form input[type="email"] {
+  width: 100%;
+  height: 48px;
+  margin: 0;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 12px;
+  color: var(--pm-text);
+  background: rgba(7, 8, 8, .72);
+  box-shadow: none;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color .2s, box-shadow .2s, background .2s;
+}
+
+body.login.pm-login-page #login form input[type="text"]:focus,
+body.login.pm-login-page #login form input[type="password"]:focus,
+body.login.pm-login-page #login form input[type="email"]:focus {
+  border-color: rgba(var(--pm-gold-rgb), .72);
+  background: rgba(7, 8, 8, .92);
+  box-shadow: 0 0 0 3px rgba(var(--pm-gold-rgb), .13);
+  outline: none;
+}
+
+body.login.pm-login-page #login .wp-pwd {
+  position: relative;
+}
+
+body.login.pm-login-page #login .wp-pwd .button.wp-hide-pw {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 46px;
+  height: 46px;
+  border: 0;
+  color: var(--pm-muted);
+  background: transparent;
+  box-shadow: none;
+}
+
+body.login.pm-login-page #login .wp-pwd .button.wp-hide-pw:hover {
+  color: var(--pm-gold-2);
+}
+
+body.login.pm-login-page #login form .forgetmenot {
+  float: none;
+  margin: 0 0 16px;
+  font-size: 12px;
+}
+
+body.login.pm-login-page #login form .forgetmenot label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: var(--pm-muted);
+  cursor: pointer;
+}
+
+body.login.pm-login-page #login form input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  border-color: rgba(var(--pm-gold-rgb), .45);
+  border-radius: 4px;
+  background: #0a0b0b;
+  accent-color: var(--pm-gold);
+}
+
+body.login.pm-login-page #login form .submit {
+  margin: 0;
+}
+
+body.login.pm-login-page #login .button-primary {
+  width: 100%;
+  height: 50px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 13px;
+  color: #191307;
+  background: linear-gradient(135deg, var(--pm-gold-2) 0%, var(--pm-gold) 55%, #b8872b 100%);
+  box-shadow: 0 12px 28px rgba(var(--pm-gold-rgb), .24);
+  font-size: 14px;
+  font-weight: 800;
+  font-family: inherit;
+  text-shadow: none;
+  transition: transform .2s, box-shadow .2s, filter .2s;
+}
+
+body.login.pm-login-page #login .button-primary:hover,
+body.login.pm-login-page #login .button-primary:focus {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 34px rgba(var(--pm-gold-rgb), .32);
+  outline: none;
+}
+
+body.login.pm-login-page #login .button-primary:active {
+  transform: translateY(0);
+}
+
+/* Links */
+body.login.pm-login-page #login #nav,
+body.login.pm-login-page #login #backtoblog {
+  margin: 14px 0 0;
+  padding: 0;
+  text-align: center;
+  font-size: 11.5px;
+}
+
+body.login.pm-login-page #login #nav a,
+body.login.pm-login-page #login #backtoblog a {
+  color: var(--pm-muted);
+  text-decoration: none;
+  transition: color .2s;
+}
+
+body.login.pm-login-page #login #nav a:hover,
+body.login.pm-login-page #login #backtoblog a:hover {
+  color: var(--pm-gold-2);
+}
+
+body.login.pm-login-page #login .privacy-policy-page-link {
+  margin: 10px 0 0;
+}
+
+body.login.pm-login-page #login .privacy-policy-page-link a {
+  color: var(--pm-muted);
+  font-size: 11px;
+}
+
+/* Notices */
+body.login.pm-login-page #login_error,
+body.login.pm-login-page #login .message,
+body.login.pm-login-page #login .success {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid rgba(217, 107, 101, .38);
+  border-right: 3px solid #d96b65;
+  border-radius: 10px;
+  color: #f0b7b2;
+  background: rgba(217, 107, 101, .1);
+  box-shadow: none;
+  font-size: 12px;
+  line-height: 1.9;
+}
+
+body.login.pm-login-page #login .message,
+body.login.pm-login-page #login .success {
+  border-color: rgba(var(--pm-gold-rgb), .38);
+  border-right-color: var(--pm-gold);
+  color: var(--pm-gold-2);
+  background: rgba(var(--pm-gold-rgb), .08);
+}
+
+body.login.pm-login-page #login_error a,
+body.login.pm-login-page #login .message a {
+  color: var(--pm-gold-2);
+}
+
+.pm-login-plugin-message {
+  margin: 0 0 16px;
+  padding: 11px 13px;
+  border: 1px solid rgba(var(--pm-gold-rgb), .28);
+  border-radius: 10px;
+  color: var(--pm-gold-2);
+  background: rgba(var(--pm-gold-rgb), .07);
+  font-size: 11.5px;
+  line-height: 1.9;
+}
+
+.pm-login-plugin-message p {
+  margin: 0;
+}
+
+.pm-login-plugin-message a {
+  color: var(--pm-gold-2);
+}
+
+/* Language switcher (hidden on the single-language branded login). */
+body.login.pm-login-page .language-switcher {
+  display: none;
+}
+
+/* Footer credit */
+.pm-login-credit {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 16px;
+  z-index: 3;
+  margin: 0;
+  color: rgba(166, 162, 154, .72);
+  font-size: 10.5px;
+  text-align: center;
+}
+
+.pm-login-credit a {
+  color: var(--pm-gold);
+  text-decoration: none;
+}
+
+.pm-login-credit a:hover {
+  color: var(--pm-gold-2);
+}
+
+/* Autofill */
+body.login.pm-login-page #login input:-webkit-autofill,
+body.login.pm-login-page #login input:-webkit-autofill:hover,
+body.login.pm-login-page #login input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--pm-text);
+  box-shadow: 0 0 0 40px #0a0b0b inset;
+  caret-color: var(--pm-text);
+}
+
+@media (max-width: 480px) {
+  body.login.pm-login-page {
+    padding: 20px 12px 52px;
+    align-items: flex-start;
+  }
+
+  body.login.pm-login-page #login {
+    margin-top: 26px;
+    padding: 26px 20px 18px;
+    border-radius: 20px;
+  }
+
+  .pm-login-brand__mark {
+    width: 46px;
+    height: 46px;
+    border-radius: 13px;
+  }
+
+  .pm-login-intro h1 {
+    font-size: 21px;
+  }
+
+  body.login.pm-login-page .language-switcher {
+    top: 12px;
+    left: 12px;
+  }
+
+  .pm-login-credit {
+    position: static;
+    margin-top: 18px;
+  }
+}

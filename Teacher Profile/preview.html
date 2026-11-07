@@ -1,0 +1,1502 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080909">
+  <meta name="description" content="پروفایل استاد دکتر آرش شایگان، نوازنده و پژوهشگر ویولن">
+  <title>دکتر آرش شایگان | آموزشگاه موسیقی پارسیان</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #080909;
+      --panel: #0c0d0d;
+      --panel-2: #111211;
+      --panel-soft: rgba(13, 14, 14, .88);
+      --gold: #d6a83d;
+      --gold-2: #f2ce73;
+      --gold-dark: #8c661b;
+      --gold-rgb: 214, 168, 61;
+      --text: #f2eee6;
+      --muted: #9d9a94;
+      --line: rgba(214, 168, 61, .28);
+      --line-soft: rgba(214, 168, 61, .13);
+      --danger: #d96b65;
+      --success: #e7c666;
+      --radius: 13px;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+    }
+
+    body.theme-kids-mode {
+      --bg: #231925;
+      --panel: #2d2030;
+      --panel-2: #38283a;
+      --panel-soft: rgba(45, 32, 48, .92);
+      --gold: #ffad55;
+      --gold-2: #ffd07c;
+      --gold-dark: #e57b3d;
+      --gold-rgb: 255, 173, 85;
+      --text: #fff8ee;
+      --muted: #d1b9ca;
+      --line: rgba(255, 173, 85, .34);
+      --line-soft: rgba(255, 173, 85, .16);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        linear-gradient(rgba(4, 4, 4, .55), rgba(4, 4, 4, .83)),
+        radial-gradient(circle at 12% 35%, rgba(var(--gold-rgb), .18), transparent 25rem),
+        radial-gradient(circle at 88% 40%, rgba(var(--gold-rgb), .1), transparent 30rem),
+        #090909;
+      font-family: "Vazirmatn", Tahoma, sans-serif;
+      line-height: 1.65;
+      transition: background .5s ease, color .5s ease;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      opacity: .13;
+      pointer-events: none;
+      background-image:
+        linear-gradient(90deg, transparent 48%, rgba(var(--gold-rgb), .15) 49%, transparent 51%),
+        linear-gradient(0deg, transparent 48%, rgba(var(--gold-rgb), .08) 49%, transparent 51%);
+      background-size: 118px 118px;
+      filter: blur(.2px);
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button { color: inherit; }
+    a { color: inherit; text-decoration: none; }
+    img { display: block; max-width: 100%; }
+    :focus-visible { outline: 2px solid var(--gold-2); outline-offset: 3px; }
+    ::selection { color: #111; background: var(--gold-2); }
+
+    .icon {
+      width: 19px;
+      height: 19px;
+      flex: 0 0 auto;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .admin-bar {
+      position: fixed;
+      z-index: 1000;
+      top: 0;
+      right: 0;
+      left: 0;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      border-bottom: 1px solid var(--line-soft);
+      background: rgba(7, 8, 8, .9);
+      -webkit-backdrop-filter: blur(18px);
+      backdrop-filter: blur(18px);
+      color: #aaa7a0;
+      font-size: 10px;
+    }
+
+    .admin-title {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--gold-2);
+      font-weight: 700;
+    }
+
+    .admin-title::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow: 0 0 9px var(--gold);
+    }
+
+    .admin-option { display: flex; align-items: center; gap: 8px; }
+
+    .switch {
+      position: relative;
+      width: 33px;
+      height: 18px;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 99px;
+      background: #1b1b19;
+      cursor: pointer;
+    }
+
+    .switch::after {
+      content: "";
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #777;
+      transition: .3s var(--ease);
+    }
+
+    .switch[aria-checked="true"]::after {
+      right: 18px;
+      background: var(--gold-2);
+      box-shadow: 0 0 8px rgba(var(--gold-rgb), .65);
+    }
+
+    .stage {
+      width: min(1450px, calc(100% - 44px));
+      min-height: 820px;
+      margin: 54px auto 28px;
+      overflow: hidden;
+      border: 1px solid rgba(224, 220, 208, .42);
+      border-radius: 20px;
+      background: var(--bg);
+      box-shadow:
+        0 40px 90px rgba(0, 0, 0, .72),
+        0 0 0 4px rgba(0, 0, 0, .55),
+        inset 0 0 50px rgba(var(--gold-rgb), .025);
+      transition: background .5s ease;
+    }
+
+    .site-header {
+      height: 76px;
+      display: grid;
+      grid-template-columns: 275px 1fr 245px;
+      align-items: center;
+      gap: 20px;
+      padding: 0 25px;
+      border-bottom: 1px solid var(--line-soft);
+      background: rgba(6, 7, 7, .94);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      color: var(--gold-2);
+    }
+
+    .brand-mark {
+      width: 39px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      color: var(--gold);
+      font-family: Georgia, serif;
+      font-size: 38px;
+      line-height: 1;
+    }
+
+    .brand strong { display: block; font-size: 13px; }
+    .brand small {
+      display: block;
+      color: #9f8f70;
+      font-family: Georgia, serif;
+      font-size: 9px;
+      direction: ltr;
+      letter-spacing: .04em;
+    }
+
+    .main-nav {
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      gap: clamp(18px, 2.5vw, 42px);
+      height: 100%;
+    }
+
+    .main-nav a {
+      position: relative;
+      display: grid;
+      place-items: center;
+      color: #bdb9b0;
+      font-size: 11px;
+      transition: color .25s ease;
+    }
+
+    .main-nav a:hover,
+    .main-nav a.active { color: var(--gold-2); }
+
+    .main-nav a.active::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      height: 2px;
+      background: var(--gold);
+      box-shadow: 0 0 10px rgba(var(--gold-rgb), .5);
+    }
+
+    .header-tools {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 13px;
+      direction: ltr;
+    }
+
+    .search-button,
+    .account-button {
+      height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
+      color: var(--gold-2);
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .search-button {
+      width: 38px;
+      border: 0;
+      border-left: 1px solid var(--line-soft);
+    }
+
+    .account-button {
+      gap: 8px;
+      padding: 0 14px;
+      border-radius: 999px;
+      font-size: 10px;
+      direction: rtl;
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: 430px minmax(520px, 1fr) 280px;
+      grid-template-areas: "portrait content booking";
+      min-height: 744px;
+      direction: ltr;
+    }
+
+    .portrait-column,
+    .content-column,
+    .booking-column { direction: rtl; }
+
+    .portrait-column {
+      grid-area: portrait;
+      position: relative;
+      min-width: 0;
+      overflow: hidden;
+      border-right: 1px solid var(--line-soft);
+      background: #080909;
+    }
+
+    .portrait {
+      position: relative;
+      height: 395px;
+      overflow: hidden;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .portrait img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: 48% center;
+      filter: saturate(.84) contrast(1.08) brightness(.89);
+      transition: transform .9s var(--ease), filter .5s ease;
+    }
+
+    .portrait:hover img {
+      transform: scale(1.035);
+      filter: saturate(.95) contrast(1.06) brightness(.94);
+    }
+
+    .portrait::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(0deg, rgba(7, 8, 8, .78), transparent 34%),
+        linear-gradient(90deg, transparent 68%, rgba(7, 8, 8, .38));
+      pointer-events: none;
+    }
+
+    .presence-strip {
+      position: absolute;
+      z-index: 3;
+      right: 14px;
+      bottom: 14px;
+      left: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 9px 11px;
+      border: 1px solid rgba(214, 168, 61, .34);
+      border-radius: 8px;
+      background: rgba(5, 6, 6, .75);
+      -webkit-backdrop-filter: blur(9px);
+      backdrop-filter: blur(9px);
+      color: #c6c0b4;
+      font-size: 9px;
+      transition: opacity .35s ease, transform .35s var(--ease);
+    }
+
+    .presence-strip.hidden {
+      opacity: 0;
+      transform: translateY(15px);
+      pointer-events: none;
+    }
+
+    .presence-days { display: flex; gap: 5px; }
+    .presence-days b {
+      padding: 3px 7px;
+      border-radius: 99px;
+      color: #1a1408;
+      background: var(--gold-2);
+      font-size: 8px;
+    }
+
+    .portrait-lower { padding: 18px 14px; }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, rgba(20, 21, 20, .94), rgba(8, 9, 9, .97));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .018);
+    }
+
+    .card-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+      color: var(--gold-2);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .card-title .icon { color: var(--gold); }
+
+    .progress-card { padding: 12px; }
+
+    .compare-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      margin-bottom: 9px;
+      padding: 2px;
+      border: 1px solid var(--line);
+      border-radius: 99px;
+    }
+
+    .compare-tab {
+      height: 26px;
+      border: 0;
+      border-radius: 99px;
+      color: #aaa69d;
+      background: transparent;
+      cursor: pointer;
+      font-size: 9px;
+    }
+
+    .compare-tab.active {
+      color: #171208;
+      background: linear-gradient(90deg, var(--gold), var(--gold-2));
+    }
+
+    .comparison {
+      position: relative;
+      height: 118px;
+      overflow: hidden;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: #0b0b0b;
+    }
+
+    .comparison img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: grayscale(.75) brightness(.68);
+    }
+
+    .comparison.after img { filter: none; }
+
+    .compare-label {
+      position: absolute;
+      bottom: 8px;
+      padding: 3px 8px;
+      border-radius: 99px;
+      color: white;
+      background: rgba(0, 0, 0, .68);
+      font-size: 8px;
+    }
+
+    .compare-label.before { right: 8px; }
+    .compare-label.after { left: 8px; color: var(--gold-2); }
+
+    .achievements {
+      margin-top: 11px;
+      padding: 11px 9px 13px;
+    }
+
+    .achievement-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+    }
+
+    .achievement {
+      min-width: 0;
+      padding: 2px 5px;
+      text-align: center;
+      border-left: 1px solid var(--line-soft);
+    }
+
+    .achievement:last-child { border-left: 0; }
+    .achievement strong {
+      display: block;
+      color: var(--gold-2);
+      font-size: 15px;
+      direction: ltr;
+    }
+    .achievement span {
+      display: block;
+      color: #a9a59c;
+      font-size: 7px;
+      line-height: 1.7;
+    }
+
+    .content-column {
+      grid-area: content;
+      min-width: 0;
+      padding: 24px 18px 16px;
+      border-right: 1px solid var(--line-soft);
+      background:
+        radial-gradient(circle at 48% 0, rgba(var(--gold-rgb), .06), transparent 21rem),
+        var(--bg);
+    }
+
+    .teacher-intro { text-align: center; }
+
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      margin-bottom: 2px;
+      color: #aaa69d;
+      font-size: 10px;
+    }
+
+    .eyebrow::after,
+    .eyebrow::before {
+      content: "";
+      width: 34px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold));
+    }
+
+    .eyebrow::after { transform: rotate(180deg); }
+
+    h1 {
+      margin: 0;
+      color: var(--gold-2);
+      font-size: clamp(27px, 3vw, 39px);
+      line-height: 1.35;
+      letter-spacing: -.05em;
+      text-shadow: 0 0 22px rgba(var(--gold-rgb), .14);
+    }
+
+    .english-name {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin: 0 0 9px;
+      color: #d7d2c9;
+      font-family: Georgia, serif;
+      font-size: 15px;
+      direction: ltr;
+    }
+
+    .english-name::before,
+    .english-name::after {
+      content: "◆";
+      color: var(--gold-dark);
+      font-size: 6px;
+    }
+
+    .bio {
+      max-width: 610px;
+      margin: 0 auto 11px;
+      color: #b8b4ab;
+      font-size: 10px;
+      line-height: 1.9;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .stat {
+      min-height: 67px;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 2px;
+      padding: 7px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: linear-gradient(145deg, rgba(var(--gold-rgb), .04), transparent);
+      color: #d8d3c9;
+      font-size: 8px;
+      line-height: 1.5;
+    }
+
+    .stat .icon { width: 25px; height: 25px; color: var(--gold-2); }
+    .stat strong { color: var(--gold-2); font-size: 13px; }
+
+    .intro-player {
+      width: min(350px, 90%);
+      height: 39px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 auto 12px;
+      padding: 0 12px 0 6px;
+      border: 1px solid var(--line);
+      border-radius: 99px;
+      background: #10110f;
+      cursor: pointer;
+    }
+
+    .intro-player .play {
+      width: 33px;
+      height: 33px;
+      display: grid;
+      place-items: center;
+      margin-right: auto;
+      border: 0;
+      border-radius: 50%;
+      color: #151107;
+      background: radial-gradient(circle at 35% 30%, #fff4b5, var(--gold) 58%, #7d5811);
+      box-shadow: 0 0 14px rgba(var(--gold-rgb), .46);
+    }
+
+    .intro-player .play .icon { width: 17px; height: 17px; fill: currentColor; stroke: none; }
+    .intro-player span { color: #d7d1c6; font-size: 9px; }
+    .intro-player time { color: #a9a49a; font-size: 9px; direction: ltr; }
+
+    .section-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 14px;
+      margin: 0 -18px 10px;
+      padding: 8px 18px 7px;
+      border-top: 1px solid var(--line);
+    }
+
+    .section-heading h2 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      color: var(--gold-2);
+      font-size: 17px;
+      letter-spacing: -.03em;
+    }
+
+    .section-heading h2 .icon { width: 27px; height: 27px; }
+    .section-heading p { margin: 0; color: #99968f; font-size: 8px; }
+
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 9px;
+      margin-bottom: 10px;
+    }
+
+    .video-card {
+      overflow: hidden;
+      border: 1px solid var(--line-soft);
+      border-radius: 9px;
+      background: #111211;
+      cursor: pointer;
+      transition: transform .3s var(--ease), border-color .3s ease;
+    }
+
+    .video-card:hover { transform: translateY(-3px); border-color: var(--line); }
+
+    .video-thumb {
+      position: relative;
+      height: 92px;
+      overflow: hidden;
+    }
+
+    .video-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: brightness(.79) saturate(.82);
+      transition: transform .6s var(--ease);
+    }
+
+    .video-card:hover img { transform: scale(1.06); }
+
+    .video-thumb::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(0deg, rgba(0, 0, 0, .57), transparent 56%);
+    }
+
+    .mini-play {
+      position: absolute;
+      z-index: 2;
+      top: 50%;
+      left: 50%;
+      width: 31px;
+      height: 31px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, .55);
+      border-radius: 50%;
+      color: white;
+      background: rgba(0, 0, 0, .38);
+      transform: translate(-50%, -50%);
+    }
+
+    .mini-play .icon { width: 15px; height: 15px; fill: currentColor; stroke: none; }
+
+    .duration {
+      position: absolute;
+      z-index: 2;
+      right: 6px;
+      bottom: 5px;
+      color: white;
+      font-size: 7px;
+      direction: ltr;
+    }
+
+    .video-info {
+      min-height: 48px;
+      padding: 7px 8px;
+      color: #d3cec4;
+      font-size: 8px;
+      line-height: 1.7;
+    }
+
+    .video-info strong { display: block; }
+    .video-info span { color: var(--gold); }
+
+    .audio-card {
+      padding: 9px 11px 8px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: linear-gradient(120deg, rgba(var(--gold-rgb), .055), transparent 55%);
+    }
+
+    .audio-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 3px;
+    }
+
+    .audio-title {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--gold-2);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .audio-subtitle { color: #99958d; font-size: 8px; }
+
+    .audio-row {
+      display: grid;
+      grid-template-columns: 36px 1fr auto;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .audio-button {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      color: var(--gold-2);
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .audio-button .icon { fill: currentColor; stroke: none; }
+
+    .waveform {
+      height: 36px;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      cursor: pointer;
+      direction: ltr;
+    }
+
+    .waveform i {
+      width: 2px;
+      height: var(--h);
+      border-radius: 3px;
+      background: var(--gold);
+      opacity: .35;
+    }
+
+    .waveform i.played { opacity: 1; box-shadow: 0 0 4px rgba(var(--gold-rgb), .35); }
+    .audio-time { color: #aaa69d; font-size: 8px; direction: ltr; white-space: nowrap; }
+
+    .booking-column {
+      grid-area: booking;
+      padding: 25px 15px 18px;
+      background:
+        radial-gradient(circle at 50% 0, rgba(var(--gold-rgb), .06), transparent 18rem),
+        #0a0b0b;
+    }
+
+    .booking-card {
+      position: sticky;
+      top: 48px;
+      padding: 19px 14px 15px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: linear-gradient(145deg, #111210, #0a0b0b);
+    }
+
+    .booking-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 9px;
+      margin-bottom: 4px;
+      color: var(--gold-2);
+      font-size: 16px;
+    }
+
+    .booking-title .icon { width: 24px; height: 24px; }
+    .booking-desc { margin: 0 0 14px; color: #aaa69f; font-size: 9px; line-height: 1.85; }
+
+    .field { margin-bottom: 10px; }
+    .control {
+      position: relative;
+      display: block;
+    }
+
+    .control .icon {
+      position: absolute;
+      top: 50%;
+      right: 10px;
+      width: 15px;
+      height: 15px;
+      color: var(--gold);
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      border: 1px solid rgba(205, 203, 194, .22);
+      border-radius: 7px;
+      outline: 0;
+      color: #e3dfd6;
+      background: #121312;
+      font-size: 9px;
+      transition: border-color .25s ease, box-shadow .25s ease;
+    }
+
+    .field input,
+    .field select {
+      height: 37px;
+      padding: 0 33px 0 9px;
+    }
+
+    .field textarea {
+      height: 63px;
+      padding: 10px 33px 8px 9px;
+      resize: none;
+    }
+
+    .field select { appearance: none; cursor: pointer; }
+    .field input::placeholder,
+    .field textarea::placeholder { color: #9a968e; }
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(var(--gold-rgb), .07);
+    }
+
+    .field input.invalid { border-color: var(--danger); }
+    .error { min-height: 11px; display: block; padding-top: 2px; color: var(--danger); font-size: 7px; }
+
+    .submit-button {
+      width: 100%;
+      height: 43px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      border: 1px solid #f1cf73;
+      border-radius: 9px;
+      color: #171207;
+      background: linear-gradient(90deg, #ad7b20, #f3d078 48%, #b27e22);
+      box-shadow: 0 5px 18px rgba(var(--gold-rgb), .22), inset 0 1px 0 rgba(255, 255, 255, .5);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 800;
+      transition: transform .25s var(--ease), box-shadow .25s ease;
+    }
+
+    .submit-button:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(var(--gold-rgb), .32); }
+    .submit-button:disabled { cursor: wait; opacity: .75; }
+
+    .spinner {
+      width: 15px;
+      height: 15px;
+      display: none;
+      border: 2px solid rgba(0, 0, 0, .25);
+      border-top-color: #171207;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    .submit-button.loading .spinner { display: block; }
+    .submit-button.loading .button-copy { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .success {
+      display: none;
+      margin-top: 9px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      color: var(--success);
+      background: rgba(var(--gold-rgb), .07);
+      font-size: 8px;
+    }
+
+    .success.show { display: block; }
+
+    .booking-benefits {
+      display: grid;
+      gap: 9px;
+      margin: 15px 4px 0;
+      color: #b4afa6;
+      font-size: 9px;
+    }
+
+    .booking-benefits span { display: flex; align-items: center; gap: 8px; }
+    .booking-benefits .icon { width: 14px; height: 14px; color: var(--gold); }
+
+    .modal {
+      position: fixed;
+      z-index: 1500;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      opacity: 0;
+      visibility: hidden;
+      background: rgba(0, 0, 0, .86);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      transition: opacity .3s ease, visibility .3s ease;
+    }
+
+    .modal.open { opacity: 1; visibility: visible; }
+
+    .modal-box {
+      width: min(820px, 100%);
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #090a0a;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, .75);
+      transform: translateY(15px) scale(.97);
+      transition: transform .4s var(--ease);
+    }
+
+    .modal.open .modal-box { transform: none; }
+
+    .modal-head {
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 15px;
+      border-bottom: 1px solid var(--line-soft);
+      color: var(--gold-2);
+      font-size: 11px;
+    }
+
+    .modal-close {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .video-stage {
+      position: relative;
+      aspect-ratio: 16 / 9;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      background:
+        linear-gradient(0deg, rgba(0, 0, 0, .65), transparent),
+        url("/assets/professor-reference.webp") center/cover;
+    }
+
+    .video-stage::after {
+      content: "این یک پیش‌نمایش تعاملی ویدئو است";
+      position: absolute;
+      right: 15px;
+      bottom: 13px;
+      color: rgba(255, 255, 255, .7);
+      font-size: 9px;
+    }
+
+    .modal-play {
+      position: relative;
+      z-index: 2;
+      width: 68px;
+      height: 68px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--gold-2);
+      border-radius: 50%;
+      color: #151107;
+      background: radial-gradient(circle at 35% 30%, #fff2ad, var(--gold));
+      box-shadow: 0 0 35px rgba(var(--gold-rgb), .4);
+      cursor: pointer;
+    }
+
+    .modal-play .icon { width: 27px; height: 27px; fill: currentColor; stroke: none; }
+    .video-stage.playing .modal-play { animation: pulse 1.5s ease-in-out infinite; }
+    @keyframes pulse { 50% { transform: scale(.92); opacity: .7; } }
+
+    @media (max-width: 1200px) {
+      .stage { width: min(980px, calc(100% - 30px)); }
+      .site-header { grid-template-columns: 240px 1fr 150px; }
+      .main-nav { gap: 17px; }
+      .main-nav a:nth-child(-n+2) { display: none; }
+      .dashboard {
+        grid-template-columns: minmax(320px, .8fr) minmax(500px, 1.2fr);
+        grid-template-areas:
+          "portrait content"
+          "booking content";
+      }
+      .booking-column { padding: 14px; border-top: 1px solid var(--line-soft); }
+      .booking-card { position: static; }
+    }
+
+    @media (max-width: 820px) {
+      .admin-bar { height: auto; min-height: 48px; flex-wrap: wrap; gap: 4px 18px; padding: 6px 12px; }
+      .admin-title { width: 100%; justify-content: center; }
+      .stage { width: calc(100% - 20px); margin-top: 62px; border-radius: 13px; }
+      .site-header {
+        height: auto;
+        grid-template-columns: 1fr auto;
+        padding: 12px 15px;
+      }
+      .main-nav { grid-column: 1 / -1; order: 3; height: 39px; overflow-x: auto; justify-content: flex-start; }
+      .header-tools { grid-column: 2; grid-row: 1; }
+      .search-button { display: none; }
+      .dashboard {
+        display: flex;
+        flex-direction: column;
+      }
+      .content-column { order: 1; border: 0; }
+      .portrait-column { order: 2; border: 0; border-top: 1px solid var(--line-soft); }
+      .booking-column { order: 3; }
+      .portrait { height: 470px; }
+      .video-thumb { height: 125px; }
+    }
+
+    @media (max-width: 540px) {
+      .account-button span { display: none; }
+      .account-button { width: 38px; padding: 0; }
+      .brand strong { font-size: 11px; }
+      .brand small { font-size: 7px; }
+      .content-column { padding: 20px 12px 14px; }
+      .section-heading { margin-inline: -12px; padding-inline: 12px; }
+      .stats { grid-template-columns: 1fr 1fr; }
+      .video-grid { grid-template-columns: 1fr; }
+      .video-thumb { height: 170px; }
+      .portrait { height: 390px; }
+      .portrait-lower { padding: 12px; }
+      .achievement-grid { grid-template-columns: 1fr; }
+      .achievement { padding: 7px; border-left: 0; border-bottom: 1px solid var(--line-soft); }
+      .audio-row { grid-template-columns: 34px 1fr; }
+      .audio-time { grid-column: 2; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-bar" aria-label="شبیه‌ساز مدیریت">
+    <span class="admin-title">شبیه‌ساز مدیریت</span>
+    <label class="admin-option">
+      روزهای حضور استاد
+      <button class="switch" id="scheduleToggle" type="button" role="switch" aria-checked="true" aria-label="نمایش روزهای حضور"></button>
+    </label>
+    <label class="admin-option">
+      <span id="themeLabel">تم آکادمیک لوکس</span>
+      <button class="switch" id="themeToggle" type="button" role="switch" aria-checked="false" aria-label="تغییر تم"></button>
+    </label>
+  </div>
+
+  <div class="stage">
+    <header class="site-header">
+      <a class="brand" href="#" aria-label="آموزشگاه موسیقی پارسیان">
+        <span class="brand-mark" aria-hidden="true">𝄞</span>
+        <span><strong>آموزشگاه موسیقی پارسیان</strong><small>Persian Music Conservatory</small></span>
+      </a>
+
+      <nav class="main-nav" aria-label="منوی اصلی">
+        <a href="#">خانه</a>
+        <a href="#">دوره‌ها</a>
+        <a class="active" href="#">اساتید</a>
+        <a href="#">مسترکلاس‌ها</a>
+        <a href="#">دانشجویان برتر</a>
+        <a href="#">کتابخانه</a>
+        <a href="#">درباره ما</a>
+        <a href="#">ارتباط با ما</a>
+      </nav>
+
+      <div class="header-tools">
+        <button class="search-button" type="button" aria-label="جستجو">
+          <svg class="icon"><use href="#i-search"></use></svg>
+        </button>
+        <button class="account-button" type="button">
+          <svg class="icon"><use href="#i-user"></use></svg>
+          <span>ورود / ثبت‌نام</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="dashboard">
+      <aside class="portrait-column">
+        <div class="portrait">
+          <img src="/assets/professor-reference.webp" alt="استاد دکتر آرش شایگان با ویولن">
+          <div class="presence-strip" id="presenceStrip">
+            <span>روزهای حضور استاد</span>
+            <span class="presence-days"><b>یکشنبه</b><b>سه‌شنبه</b><b>پنجشنبه</b></span>
+          </div>
+        </div>
+
+        <div class="portrait-lower">
+          <section class="card progress-card" aria-labelledby="progressTitle">
+            <div class="card-title" id="progressTitle">
+              <span>روند پیشرفت هنرجو</span>
+              <svg class="icon"><use href="#i-chart"></use></svg>
+            </div>
+            <div class="compare-tabs" role="tablist">
+              <button class="compare-tab active" data-view="after" type="button" role="tab" aria-selected="true">بعد از آموزش</button>
+              <button class="compare-tab" data-view="before" type="button" role="tab" aria-selected="false">قبل از آموزش</button>
+            </div>
+            <div class="comparison after" id="comparison">
+              <img src="/assets/student-reference.webp" alt="مقایسه پیشرفت نوازندگی هنرجو">
+              <span class="compare-label before">قبل</span>
+              <span class="compare-label after">بعد</span>
+            </div>
+          </section>
+
+          <section class="card achievements">
+            <div class="card-title">
+              <span>دستاوردهای هنرجویان</span>
+              <svg class="icon"><use href="#i-trophy"></use></svg>
+            </div>
+            <div class="achievement-grid">
+              <div class="achievement"><strong>+۱۲۰</strong><span>رتبه‌ی اول جشنواره موسیقی</span></div>
+              <div class="achievement"><strong>+۲۸</strong><span>قبولی در دانشگاه‌های معتبر موسیقی</span></div>
+              <div class="achievement"><strong>+۱۵</strong><span>برنده‌ی جشنواره‌های ملی و بین‌المللی</span></div>
+            </div>
+          </section>
+        </div>
+      </aside>
+
+      <section class="content-column">
+        <div class="teacher-intro">
+          <div class="eyebrow">استاد، نوازنده و پژوهشگر ویولن</div>
+          <h1>دکتر آرش شایگان</h1>
+          <div class="english-name">Dr. Arash Shayegan</div>
+          <p class="bio">نوازنده بین‌المللی ویولن، پژوهشگر موسیقی کلاسیک و استاد دانشگاه با بیش از ۳۵ سال تجربه در آموزش حرفه‌ای، تربیت نوازندگان ممتاز و اجرای کنسرت در ایران و اروپا.</p>
+        </div>
+
+        <div class="stats">
+          <div class="stat"><svg class="icon"><use href="#i-trophy"></use></svg><strong>برنده جوایز</strong><span>بین‌المللی اجرا و آموزش</span></div>
+          <div class="stat"><svg class="icon"><use href="#i-laurel"></use></svg><strong>۳۵+ سال</strong><span>تجربه آموزش و اجرا</span></div>
+          <div class="stat"><svg class="icon"><use href="#i-building"></use></svg><strong>استاد دانشگاه</strong><span>و مدرس آکادمیک</span></div>
+          <div class="stat"><svg class="icon"><use href="#i-education"></use></svg><strong>دکترای هنر</strong><span>اجرای ویولن</span></div>
+        </div>
+
+        <button class="intro-player" id="openModal" type="button">
+          <time>04:32</time>
+          <span>معرفی استاد (ویدیوی اختصاصی)</span>
+          <span class="play"><svg class="icon"><use href="#i-play"></use></svg></span>
+        </button>
+
+        <div class="section-heading">
+          <div>
+            <h2><svg class="icon"><use href="#i-education"></use></svg> موفقیت هنرجویان و مسترکلاس‌ها</h2>
+            <p>نمونه‌ای از اجرای هنرجویان برتر، مسترکلاس‌ها و روند پیشرفت آموزشی</p>
+          </div>
+        </div>
+
+        <div class="video-grid">
+          <article class="video-card" tabindex="0">
+            <div class="video-thumb">
+              <img src="/assets/duet-reference.webp" alt="اجرای دونوازی استاد و هنرجو">
+              <span class="mini-play"><svg class="icon"><use href="#i-play"></use></svg></span>
+              <time class="duration">12:19</time>
+            </div>
+            <div class="video-info"><strong>اجرای دونوازی استاد و هنرجو</strong><span>ویولن؛ چهار فصل</span></div>
+          </article>
+          <article class="video-card" tabindex="0">
+            <div class="video-thumb">
+              <img src="/assets/student-reference.webp" alt="اجرای هنرجوی برتر">
+              <span class="mini-play"><svg class="icon"><use href="#i-play"></use></svg></span>
+              <time class="duration">07:38</time>
+            </div>
+            <div class="video-info"><strong>اجرای هنرجوی برتر</strong><span>سطح پیشرفته</span></div>
+          </article>
+          <article class="video-card" tabindex="0">
+            <div class="video-thumb">
+              <img src="/assets/masterclass-reference.webp" alt="مسترکلاس تخصصی ویولن">
+              <span class="mini-play"><svg class="icon"><use href="#i-play"></use></svg></span>
+              <time class="duration">14:26</time>
+            </div>
+            <div class="video-info"><strong>مسترکلاس تفسیر سونات باخ</strong><span>جلسه کامل</span></div>
+          </article>
+        </div>
+
+        <section class="audio-card" aria-labelledby="audioTitle">
+          <div class="audio-top">
+            <div class="audio-title" id="audioTitle"><svg class="icon"><use href="#i-music"></use></svg> نمونه صوتی اجرا</div>
+            <span class="audio-subtitle">قطعه: شاکن باخ — اجرای اختصاصی استاد</span>
+          </div>
+          <div class="audio-row">
+            <button class="audio-button" id="audioButton" type="button" aria-label="پخش نمونه صوتی" aria-pressed="false">
+              <svg class="icon"><use id="audioIcon" href="#i-play"></use></svg>
+            </button>
+            <div class="waveform" id="waveform" aria-label="موج صوتی"></div>
+            <span class="audio-time" id="audioTime">02:14 / 06:57</span>
+          </div>
+        </section>
+      </section>
+
+      <aside class="booking-column">
+        <section class="booking-card">
+          <h2 class="booking-title">
+            رزرو مشاوره تخصصی
+            <svg class="icon"><use href="#i-calendar"></use></svg>
+          </h2>
+          <p class="booking-desc">برای انتخاب مسیر آموزشی، ارزیابی سطح و برنامه‌ریزی آکادمیک با استاد مشاوره کنید.</p>
+
+          <form id="bookingForm" novalidate>
+            <div class="field">
+              <label class="control">
+                <svg class="icon"><use href="#i-user"></use></svg>
+                <input id="name" type="text" autocomplete="name" placeholder="نام و نام خانوادگی">
+              </label>
+              <span class="error" id="nameError"></span>
+            </div>
+            <div class="field">
+              <label class="control">
+                <svg class="icon"><use href="#i-phone"></use></svg>
+                <input id="phone" type="tel" inputmode="numeric" maxlength="11" autocomplete="tel" placeholder="شماره تماس">
+              </label>
+              <span class="error" id="phoneError"></span>
+            </div>
+            <div class="field">
+              <label class="control">
+                <svg class="icon"><use href="#i-target"></use></svg>
+                <select id="topic">
+                  <option value="">موضوع مشاوره</option>
+                  <option value="level">تعیین سطح ویولن</option>
+                  <option value="composition">آهنگسازی و فرم</option>
+                  <option value="career">مسیر حرفه‌ای و دانشگاه</option>
+                </select>
+              </label>
+              <span class="error" id="topicError"></span>
+            </div>
+            <div class="field">
+              <label class="control">
+                <svg class="icon"><use href="#i-level"></use></svg>
+                <select>
+                  <option>سطح فعلی نوازندگی</option>
+                  <option>مقدماتی</option>
+                  <option>متوسط</option>
+                  <option>پیشرفته</option>
+                </select>
+              </label>
+            </div>
+            <div class="field">
+              <label class="control">
+                <svg class="icon"><use href="#i-calendar"></use></svg>
+                <input type="text" placeholder="تاریخ پیشنهادی" onfocus="this.type='date'" onblur="if(!this.value)this.type='text'">
+              </label>
+            </div>
+            <div class="field">
+              <label class="control">
+                <svg class="icon" style="top:17px"><use href="#i-edit"></use></svg>
+                <textarea placeholder="توضیحات (اختیاری)"></textarea>
+              </label>
+            </div>
+            <button class="submit-button" id="submitButton" type="submit">
+              <span class="spinner"></span>
+              <span class="button-copy">رزرو مشاوره</span>
+              <svg class="icon"><use href="#i-calendar"></use></svg>
+            </button>
+            <div class="success" id="successMessage" role="status">درخواست شما ثبت شد؛ برای هماهنگی نهایی با شما تماس می‌گیریم.</div>
+          </form>
+
+          <div class="booking-benefits">
+            <span><svg class="icon"><use href="#i-headset"></use></svg> مشاوره مستقیم با استاد</span>
+            <span><svg class="icon"><use href="#i-level"></use></svg> ارزیابی تخصصی سطح</span>
+            <span><svg class="icon"><use href="#i-road"></use></svg> ارائه مسیر آموزشی شخصی‌سازی‌شده</span>
+          </div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <div class="modal" id="videoModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="modalTitle">
+    <div class="modal-box">
+      <div class="modal-head">
+        <strong id="modalTitle">معرفی استاد دکتر آرش شایگان</strong>
+        <button class="modal-close" id="closeModal" type="button" aria-label="بستن">
+          <svg class="icon"><use href="#i-close"></use></svg>
+        </button>
+      </div>
+      <div class="video-stage" id="videoStage">
+        <button class="modal-play" id="modalPlay" type="button" aria-label="پخش ویدئو">
+          <svg class="icon"><use id="modalPlayIcon" href="#i-play"></use></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c.7-4.5 3.4-7 8-7s7.3 2.5 8 7"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M7 3H4.5A1.5 1.5 0 0 0 3 4.5C3 13.6 10.4 21 19.5 21a1.5 1.5 0 0 0 1.5-1.5V17l-4-1-1.3 2.2a15.7 15.7 0 0 1-9.9-9.9L8 7z"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM14 5h4v14h-4z"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 19V9m5 10V5m5 14v-7m5 7V3M3 21h18"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 4h8v4a4 4 0 0 1-8 0zm4 8v5m-4 4h8m-6-4h4M8 6H4v2a4 4 0 0 0 4 4m8-6h4v2a4 4 0 0 1-4 4"/></symbol>
+    <symbol id="i-laurel" viewBox="0 0 24 24"><path d="M8 19c-4-3-5-8-3-13m11 13c4-3 5-8 3-13M6 9 3 8m4 5-3 1m4 2-2 3m12-10 3-1m-4 5 3 1m-4 2 2 3"/></symbol>
+    <symbol id="i-building" viewBox="0 0 24 24"><path d="M3 21h18M5 9h14M7 9v9m5-9v9m5-9v9M4 6l8-4 8 4z"/></symbol>
+    <symbol id="i-education" viewBox="0 0 24 24"><path d="m3 9 9-5 9 5-9 5zM7 12v5c3 2 7 2 10 0v-5m4-3v7"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-level" viewBox="0 0 24 24"><path d="M4 19h4v-5H4zm6 0h4V9h-4zm6 0h4V4h-4z"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="m4 20 4-1 11-11-3-3L5 16zM14 7l3 3"/></symbol>
+    <symbol id="i-headset" viewBox="0 0 24 24"><path d="M4 14v-2a8 8 0 0 1 16 0v2M4 14h4v6H6a2 2 0 0 1-2-2zm16 0h-4v6h2a2 2 0 0 0 2-2z"/></symbol>
+    <symbol id="i-road" viewBox="0 0 24 24"><path d="M8 21 10 3m6 18L14 3m-2 4v3m0 4v3"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  </svg>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const faDigits = "۰۱۲۳۴۵۶۷۸۹";
+      const toFa = value => String(value).replace(/\d/g, digit => faDigits[digit]);
+      const toEn = value => String(value)
+        .replace(/[۰-۹]/g, digit => faDigits.indexOf(digit))
+        .replace(/[٠-٩]/g, digit => "٠١٢٣٤٥٦٧٨٩".indexOf(digit));
+
+      const scheduleToggle = document.getElementById("scheduleToggle");
+      const presenceStrip = document.getElementById("presenceStrip");
+      scheduleToggle.addEventListener("click", () => {
+        const isVisible = scheduleToggle.getAttribute("aria-checked") === "true";
+        scheduleToggle.setAttribute("aria-checked", String(!isVisible));
+        presenceStrip.classList.toggle("hidden", isVisible);
+      });
+
+      const themeToggle = document.getElementById("themeToggle");
+      const themeLabel = document.getElementById("themeLabel");
+      themeToggle.addEventListener("click", () => {
+        const isKids = document.body.classList.toggle("theme-kids-mode");
+        themeToggle.setAttribute("aria-checked", String(isKids));
+        themeLabel.textContent = isKids ? "تم دپارتمان موسیقی کودک" : "تم آکادمیک لوکس";
+      });
+
+      const compareTabs = [...document.querySelectorAll(".compare-tab")];
+      const comparison = document.getElementById("comparison");
+      compareTabs.forEach(tab => {
+        tab.addEventListener("click", () => {
+          compareTabs.forEach(item => {
+            item.classList.toggle("active", item === tab);
+            item.setAttribute("aria-selected", String(item === tab));
+          });
+          comparison.classList.toggle("after", tab.dataset.view === "after");
+          comparison.animate([{ opacity: .55 }, { opacity: 1 }], { duration: 320 });
+        });
+      });
+
+      const waveform = document.getElementById("waveform");
+      const barCount = 86;
+      for (let i = 0; i < barCount; i++) {
+        const bar = document.createElement("i");
+        const height = 7 + Math.abs(Math.sin(i * .48) * 21 + Math.sin(i * .13) * 8);
+        bar.style.setProperty("--h", `${height}px`);
+        if (i < 29) bar.classList.add("played");
+        waveform.appendChild(bar);
+      }
+
+      const audioButton = document.getElementById("audioButton");
+      const audioIcon = document.getElementById("audioIcon");
+      const audioTime = document.getElementById("audioTime");
+      let playing = false;
+      let progress = 29;
+      let audioTimer;
+
+      function setAudio(next) {
+        playing = next;
+        audioButton.setAttribute("aria-pressed", String(playing));
+        audioIcon.setAttribute("href", playing ? "#i-pause" : "#i-play");
+        clearInterval(audioTimer);
+        if (playing) {
+          audioTimer = setInterval(() => {
+            progress = (progress + 1) % barCount;
+            [...waveform.children].forEach((bar, index) => bar.classList.toggle("played", index <= progress));
+            const elapsed = Math.round((progress / barCount) * 417);
+            const min = Math.floor(elapsed / 60);
+            const sec = String(elapsed % 60).padStart(2, "0");
+            audioTime.textContent = `${min}:${sec} / 06:57`;
+          }, 240);
+        }
+      }
+
+      audioButton.addEventListener("click", () => setAudio(!playing));
+      waveform.addEventListener("click", event => {
+        const rect = waveform.getBoundingClientRect();
+        progress = Math.max(0, Math.min(barCount - 1, Math.floor(((event.clientX - rect.left) / rect.width) * barCount)));
+        [...waveform.children].forEach((bar, index) => bar.classList.toggle("played", index <= progress));
+      });
+
+      const modal = document.getElementById("videoModal");
+      const openModal = document.getElementById("openModal");
+      const closeModal = document.getElementById("closeModal");
+      const modalPlay = document.getElementById("modalPlay");
+      const modalPlayIcon = document.getElementById("modalPlayIcon");
+      const videoStage = document.getElementById("videoStage");
+      let videoPlaying = false;
+
+      function showModal() {
+        modal.classList.add("open");
+        modal.setAttribute("aria-hidden", "false");
+        document.body.style.overflow = "hidden";
+        closeModal.focus();
+      }
+
+      function hideModal() {
+        modal.classList.remove("open");
+        modal.setAttribute("aria-hidden", "true");
+        document.body.style.overflow = "";
+        videoPlaying = false;
+        videoStage.classList.remove("playing");
+        modalPlayIcon.setAttribute("href", "#i-play");
+        openModal.focus();
+      }
+
+      openModal.addEventListener("click", showModal);
+      document.querySelectorAll(".video-card").forEach(card => {
+        card.addEventListener("click", showModal);
+        card.addEventListener("keydown", event => {
+          if (event.key === "Enter" || event.key === " ") showModal();
+        });
+      });
+      closeModal.addEventListener("click", hideModal);
+      modal.addEventListener("click", event => { if (event.target === modal) hideModal(); });
+      document.addEventListener("keydown", event => { if (event.key === "Escape" && modal.classList.contains("open")) hideModal(); });
+      modalPlay.addEventListener("click", () => {
+        videoPlaying = !videoPlaying;
+        videoStage.classList.toggle("playing", videoPlaying);
+        modalPlayIcon.setAttribute("href", videoPlaying ? "#i-pause" : "#i-play");
+      });
+
+      const form = document.getElementById("bookingForm");
+      const nameInput = document.getElementById("name");
+      const phoneInput = document.getElementById("phone");
+      const topicInput = document.getElementById("topic");
+      const submitButton = document.getElementById("submitButton");
+      const successMessage = document.getElementById("successMessage");
+
+      phoneInput.addEventListener("input", () => {
+        phoneInput.value = toFa(toEn(phoneInput.value).replace(/\D/g, "").slice(0, 11));
+        phoneInput.classList.remove("invalid");
+        document.getElementById("phoneError").textContent = "";
+      });
+
+      const validate = (input, errorId, message) => {
+        input.classList.toggle("invalid", Boolean(message));
+        document.getElementById(errorId).textContent = message;
+        return !message;
+      };
+
+      form.addEventListener("submit", event => {
+        event.preventDefault();
+        successMessage.classList.remove("show");
+        const nameOk = validate(nameInput, "nameError", nameInput.value.trim().length < 3 ? "نام کامل را وارد کنید." : "");
+        const phoneOk = validate(phoneInput, "phoneError", !/^09\d{9}$/.test(toEn(phoneInput.value)) ? "شماره موبایل معتبر نیست." : "");
+        const topicOk = validate(topicInput, "topicError", !topicInput.value ? "موضوع مشاوره را انتخاب کنید." : "");
+        if (!nameOk || !phoneOk || !topicOk) return;
+
+        submitButton.classList.add("loading");
+        submitButton.disabled = true;
+        setTimeout(() => {
+          submitButton.classList.remove("loading");
+          submitButton.disabled = false;
+          successMessage.classList.add("show");
+          form.reset();
+        }, 1200);
+      });
+    })();
+  </script>
+</body>
+</html>

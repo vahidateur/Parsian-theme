@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+BASE="$(cd "$(dirname "$0")" && pwd)"
+exec /usr/bin/php8.5 -d error_reporting=8191 -d display_errors=0 "$BASE/wp-cli.phar" --path="$BASE/site" "$@"

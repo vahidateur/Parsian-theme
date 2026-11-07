@@ -1,0 +1,21 @@
+# Local runtime — never commit
+wp-local/site/
+wp-local/mysql/
+wp-local/mysql-files/
+wp-local/*.log
+wp-local/*.sock
+wp-local/wp-cli.phar
+wp-local/backups/*.zip
+*.sql
+*.log
+*.so
+
+# Python / OS noise
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+
+# Keep release zips out of history bloat (root zip is the installable artifact; keep it)
+# Uncomment to exclude zips as well:
+# *.zip
