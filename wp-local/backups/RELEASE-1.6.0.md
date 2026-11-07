@@ -7,9 +7,10 @@ Baseline preserved: `wp-local/backups/parsian-wp-1.5.0-baseline.sql`, `parsian-m
 
 ## Artifacts (this release)
 
-- `parsian-music.zip` (root, installable, 1.6.0)
-- `wp-local/backups/parsian-music-1.6.0.zip`
-- `wp-local/backups/parsian-wp-1.6.0.sql`
+- `parsian-music.zip` — installable theme 1.6.0, published as the `v1.6.0` GitHub Release asset (removed from the repo root after upload verification).
+- Local-only artifacts (kept on disk under `wp-local/backups/`, intentionally excluded from Git via `.gitignore` — not part of the repository):
+  - `parsian-music-1.6.0.zip`
+  - `parsian-wp-1.6.0.sql`
 - `wp-local/tests/pm-1.6.0-smoke.php` — 15 assertions, all green on 2026-11-07
 - AI runtime: `site/wp-content/uploads/pm-ai-index.json` (11 entries), `pm-ai-approved.json`
 
