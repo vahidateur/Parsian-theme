@@ -357,6 +357,6 @@ add_filter( 'admin_footer_text', 'pm_admin_footer_text' );
  * @return string
  */
 function pm_admin_update_footer() {
-	return 'Parsian Theme 1.6.0';
+	return 'Parsian Theme 1.6.1';
 }
 add_filter( 'update_footer', 'pm_admin_update_footer', 11 );
