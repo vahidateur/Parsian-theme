@@ -134,7 +134,7 @@ secret 403, plugin deactivation/reactivation with data intact.
   plus PHP 8.5.12 on **MariaDB 11.8.9 (backward compatibility)**, all PHP
   suites.
 - `node`: Node 26.13.0, npm 12.2.2, `npm ci`, 8 popup tests, `npm audit`.
-- `codeql`: PHP + JavaScript/TypeScript analysis.
+- `codeql`: JavaScript/TypeScript analysis (CodeQL has no PHP language).
 - `package`: production theme/plugin ZIPs with no development files.
 
 All actions are pinned to full commit SHAs (comments record the release):

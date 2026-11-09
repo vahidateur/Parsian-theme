@@ -173,7 +173,11 @@ jobs:
       - name: Debug log and whitespace checks
         run: |
           if [ -s "$WP_DIR/wp-content/debug.log" ]; then
-            if grep -qiE 'PHP (Fatal|Warning|Deprecated|Notice)' "$WP_DIR/wp-content/debug.log"; then
+            # WP-CLI 2.12.0 has a known PHP 8.5 deprecation in its bundled
+            # php-cli-tools; ignore that vendor line, but fail on project code.
+            if grep -iE 'PHP (Fatal|Warning|Deprecated|Notice)' "$WP_DIR/wp-content/debug.log" \
+              | grep -v 'php-cli-tools/lib/cli/Colors.php' \
+              | grep -q .; then
               cat "$WP_DIR/wp-content/debug.log"
               exit 1
             fi
@@ -308,7 +312,7 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
-          languages: php, javascript-typescript
+          languages: javascript-typescript
           build-mode: none
 
       - name: Analyze
