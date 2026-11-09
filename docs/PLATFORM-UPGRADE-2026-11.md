@@ -66,7 +66,7 @@ backward-compatibility evidence.
 - Theme/plugin compatibility declarations raised to PHP 8.4.27 / WordPress 7.1.
 - CI workflow added with exact PHP 8.4.27/8.5.12, WordPress 7.1.4, MySQL
   8.4.13, MariaDB 12.3.3 and 11.8.9, Node 26.13.0, npm 12.2.2, lint, tests,
-  npm audit, CodeQL, and production archives.
+  npm audit, and production archives.
 
 ## Breaking changes and fixes
 
@@ -125,7 +125,7 @@ secret 403, plugin deactivation/reactivation with data intact.
 
 ## CI workflow
 
-`.github/workflows/ci.yml` has five jobs:
+`.github/workflows/ci.yml` has four jobs:
 
 - `php`: exact PHP 8.4.27/8.5.12 matrix, WordPress 7.1.4, MySQL 8.4.13, all
   PHP suites, third-party theme compatibility, activation/data persistence,
@@ -134,13 +134,16 @@ secret 403, plugin deactivation/reactivation with data intact.
   plus PHP 8.5.12 on **MariaDB 11.8.9 (backward compatibility)**, all PHP
   suites.
 - `node`: Node 26.13.0, npm 12.2.2, `npm ci`, 8 popup tests, `npm audit`.
-- `codeql`: JavaScript/TypeScript analysis (CodeQL has no PHP language).
 - `package`: production theme/plugin ZIPs with no development files.
 
 All actions are pinned to full commit SHAs (comments record the release):
-checkout v7.0.1, setup-php 2.40.0, setup-node v7.1.0, CodeQL v4.39.3,
-upload-artifact v7.0.2. The workflow also warns when upstream WordPress is
-newer than the pinned, verified version.
+checkout v7.0.1, setup-php 2.40.0, setup-node v7.1.0, upload-artifact v7.0.2.
+The workflow also warns when upstream WordPress is newer than the pinned,
+verified version.
+
+CodeQL is intentionally not a job: GitHub code scanning is not enabled for
+this repository, and CodeQL has no PHP language. npm audit, Core checksum
+verification, and the E_ALL project suite remain the security gates.
 
 ## Remaining risks / limitations
 
