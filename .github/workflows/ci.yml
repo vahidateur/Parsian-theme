@@ -1,0 +1,338 @@
+name: Platform CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  WP_VERSION: '7.1.4'
+  WP_SHA1: 'b175879c4fb2d35300f9abe1153da9b543a35a2b'
+  WP_CLI_VERSION: '2.12.0'
+  WP_CLI_SHA512: 'be928f6b8ca1e8dfb9d2f4b75a13aa4aee0896f8a9a0a1c45cd5d2c98605e6172e6d014dda2e27f88c98befc16c040cbb2bd1bfa121510ea5cdf5f6a30fe8832'
+  ASTRA_VERSION: '4.14.2'
+  GENERATEPRESS_VERSION: '3.6.1'
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  php:
+    name: PHP ${{ matrix.php }} / WordPress 7.1.4 / MySQL 8.4.13
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.4.27', '8.5.12']
+    services:
+      mysql:
+        image: mysql:8.4.13
+        env:
+          MYSQL_DATABASE: parsian_ci
+          MYSQL_USER: parsian
+          MYSQL_PASSWORD: ci_only_not_secret
+          MYSQL_ROOT_PASSWORD: ci_root_not_secret
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uparsian -pci_only_not_secret"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check upstream WordPress release
+        if: matrix.php == '8.5.12'
+        run: |
+          latest=$(curl -fsSL https://api.wordpress.org/core/version-check/1.7/ | jq -r '.offers[0].current')
+          echo "Upstream WordPress latest: $latest (CI pinned: $WP_VERSION)"
+          if [ "$latest" != "$WP_VERSION" ]; then
+            echo "::warning::WordPress $latest is newer than the pinned $WP_VERSION; re-verify and update the matrix."
+          fi
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mysqli, mbstring, curl, zip, gd, xml, intl, opcache
+          coverage: none
+          ini-values: error_reporting=8191
+
+      - name: Install verified WP-CLI
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL "https://github.com/wp-cli/wp-cli/releases/download/v${WP_CLI_VERSION}/wp-cli-${WP_CLI_VERSION}.phar" \
+            -o "$RUNNER_TEMP/bin/wp"
+          echo "${WP_CLI_SHA512}  $RUNNER_TEMP/bin/wp" | sha512sum -c -
+          chmod +x "$RUNNER_TEMP/bin/wp"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Install MySQL client tools
+        run: sudo apt-get update && sudo apt-get install -y default-mysql-client
+
+      - name: Show toolchain
+        run: |
+          php -v
+          wp --no-color --version
+          mysql --version
+          node --version 2>/dev/null || true
+
+      - name: Install isolated WordPress
+        env:
+          DB_NAME: parsian_ci
+          DB_USER: parsian
+          DB_PASS: ci_only_not_secret
+          DB_HOST: 127.0.0.1
+        run: |
+          WP_DIR="$RUNNER_TEMP/wordpress"
+          mkdir -p "$WP_DIR"
+          curl -fsSL "https://wordpress.org/wordpress-${WP_VERSION}.tar.gz" -o "$RUNNER_TEMP/wordpress.tar.gz"
+          echo "${WP_SHA1}  $RUNNER_TEMP/wordpress.tar.gz" | sha1sum -c -
+          tar -xzf "$RUNNER_TEMP/wordpress.tar.gz" -C "$WP_DIR" --strip-components=1
+          wp config create --path="$WP_DIR" --dbname="$DB_NAME" --dbuser="$DB_USER" \
+            --dbpass="$DB_PASS" --dbhost="$DB_HOST" --dbprefix=wp_ --skip-check
+          wp core install --path="$WP_DIR" --url=http://127.0.0.1:8080 \
+            --title="Parsian CI" --admin_user=admin --admin_password=ci_only_not_secret \
+            --admin_email=admin@example.com --skip-email
+          wp config set WP_DEBUG true --raw --path="$WP_DIR"
+          wp config set WP_DEBUG_LOG true --raw --path="$WP_DIR"
+          wp config set WP_DEBUG_DISPLAY false --raw --path="$WP_DIR"
+          ln -s "$GITHUB_WORKSPACE/parsian-music" "$WP_DIR/wp-content/themes/parsian-music"
+          ln -s "$GITHUB_WORKSPACE/parsian-assistant" "$WP_DIR/wp-content/plugins/parsian-assistant"
+          wp theme activate parsian-music --path="$WP_DIR"
+          wp plugin activate parsian-assistant --path="$WP_DIR"
+          wp core verify-checksums --path="$WP_DIR"
+          wp core update-db --path="$WP_DIR"
+          wp db check --path="$WP_DIR"
+          echo "WP_DIR=$WP_DIR" >> "$GITHUB_ENV"
+
+      - name: PHP lint
+        run: |
+          find parsian-music parsian-assistant wp-local/tests -type f -name '*.php' -print0 \
+            | xargs -0 -n1 php -l
+
+      - name: Run PHP suites
+        run: |
+          for t in pa-platform-test pa-migration-test pa-assistant-test pa-bale-test pa-security-test \
+                   pa-durability-test pa-webhook-test pm-1.6.0-smoke pa-theme-compat; do
+            echo "== $t =="
+            wp eval-file "$GITHUB_WORKSPACE/wp-local/tests/$t.php" --path="$WP_DIR"
+          done
+
+      - name: E_ALL deprecation audit
+        if: matrix.php == '8.5.12'
+        run: |
+          mkdir -p "$RUNNER_TEMP/eall"
+          for t in pa-platform-test pa-migration-test pa-assistant-test pa-bale-test pa-security-test \
+                   pa-durability-test pa-webhook-test pm-1.6.0-smoke pa-theme-compat; do
+            out="$RUNNER_TEMP/eall/$t.log"
+            WP_LOAD="$WP_DIR/wp-load.php" PA_TEST_FILE="$GITHUB_WORKSPACE/wp-local/tests/$t.php" \
+              php -d error_reporting=E_ALL -d display_errors=1 \
+              "$GITHUB_WORKSPACE/wp-local/tests/eall-bootstrap.php" >"$out" 2>&1 || {
+                cat "$out"
+                exit 1
+              }
+            cat "$out"
+            if grep -E '^(Deprecated:|Warning:|Notice:|Fatal error|PHP (Deprecated|Warning|Notice|Fatal))' "$out"; then
+              exit 1
+            fi
+          done
+
+      - name: Third-party theme compatibility
+        if: matrix.php == '8.5.12'
+        run: |
+          wp theme install "https://downloads.wordpress.org/theme/astra.${ASTRA_VERSION}.zip" --force --path="$WP_DIR"
+          wp theme install "https://downloads.wordpress.org/theme/generatepress.${GENERATEPRESS_VERSION}.zip" --force --path="$WP_DIR"
+          for theme in twentytwentyfive astra generatepress; do
+            wp theme activate "$theme" --path="$WP_DIR"
+            wp eval-file "$GITHUB_WORKSPACE/wp-local/tests/pa-theme-compat.php" --path="$WP_DIR"
+          done
+          wp theme activate parsian-music --path="$WP_DIR"
+
+      - name: Activation / data persistence
+        if: matrix.php == '8.5.12'
+        run: |
+          wp plugin deactivate parsian-assistant --path="$WP_DIR"
+          wp plugin activate parsian-assistant --path="$WP_DIR"
+          wp eval '$r=new PA_Conversation_Repository(); $c=$r->find_or_create("bale","bale:ci-persist",0); $r->add_message($c,"user","ci"); echo "persist-ok\n";' --path="$WP_DIR"
+          wp eval '$w=$GLOBALS["wpdb"]; echo "rows=".(int)$w->get_var("SELECT COUNT(*) FROM ".pa_table("messages")." WHERE conversation_id=(SELECT id FROM ".pa_table("conversations")." WHERE external_key=\"bale:ci-persist\")")."\n";' --path="$WP_DIR"
+
+      - name: Debug log and whitespace checks
+        run: |
+          if [ -s "$WP_DIR/wp-content/debug.log" ]; then
+            if grep -qiE 'PHP (Fatal|Warning|Deprecated|Notice)' "$WP_DIR/wp-content/debug.log"; then
+              cat "$WP_DIR/wp-content/debug.log"
+              exit 1
+            fi
+          fi
+          git diff --check
+          if git diff --cached --quiet; then :; else git diff --cached --check; fi
+
+  mariadb:
+    name: PHP ${{ matrix.php }} / MariaDB ${{ matrix.mariadb }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: '8.4.27'
+            mariadb: '12.3.3'
+          - php: '8.5.12'
+            mariadb: '12.3.3'
+          - php: '8.5.12'
+            mariadb: '11.8.9'
+    services:
+      mariadb:
+        image: mariadb:${{ matrix.mariadb }}
+        env:
+          MARIADB_DATABASE: parsian_ci
+          MARIADB_USER: parsian
+          MARIADB_PASSWORD: ci_only_not_secret
+          MARIADB_ROOT_PASSWORD: ci_root_not_secret
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mysqli, mbstring, curl, zip, gd, xml, intl, opcache
+          coverage: none
+          ini-values: error_reporting=8191
+
+      - name: Install verified WP-CLI
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL "https://github.com/wp-cli/wp-cli/releases/download/v${WP_CLI_VERSION}/wp-cli-${WP_CLI_VERSION}.phar" \
+            -o "$RUNNER_TEMP/bin/wp"
+          echo "${WP_CLI_SHA512}  $RUNNER_TEMP/bin/wp" | sha512sum -c -
+          chmod +x "$RUNNER_TEMP/bin/wp"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Install MySQL client tools
+        run: sudo apt-get update && sudo apt-get install -y default-mysql-client
+
+      - name: Install isolated WordPress
+        env:
+          DB_NAME: parsian_ci
+          DB_USER: parsian
+          DB_PASS: ci_only_not_secret
+          DB_HOST: 127.0.0.1
+        run: |
+          WP_DIR="$RUNNER_TEMP/wordpress"
+          mkdir -p "$WP_DIR"
+          curl -fsSL "https://wordpress.org/wordpress-${WP_VERSION}.tar.gz" -o "$RUNNER_TEMP/wordpress.tar.gz"
+          echo "${WP_SHA1}  $RUNNER_TEMP/wordpress.tar.gz" | sha1sum -c -
+          tar -xzf "$RUNNER_TEMP/wordpress.tar.gz" -C "$WP_DIR" --strip-components=1
+          wp config create --path="$WP_DIR" --dbname="$DB_NAME" --dbuser="$DB_USER" \
+            --dbpass="$DB_PASS" --dbhost="$DB_HOST" --dbprefix=wp_ --skip-check
+          wp core install --path="$WP_DIR" --url=http://127.0.0.1:8080 \
+            --title="Parsian CI" --admin_user=admin --admin_password=ci_only_not_secret \
+            --admin_email=admin@example.com --skip-email
+          ln -s "$GITHUB_WORKSPACE/parsian-music" "$WP_DIR/wp-content/themes/parsian-music"
+          ln -s "$GITHUB_WORKSPACE/parsian-assistant" "$WP_DIR/wp-content/plugins/parsian-assistant"
+          wp theme activate parsian-music --path="$WP_DIR"
+          wp plugin activate parsian-assistant --path="$WP_DIR"
+          wp db check --path="$WP_DIR"
+          echo "WP_DIR=$WP_DIR" >> "$GITHUB_ENV"
+
+      - name: Run PHP suites
+        run: |
+          for t in pa-platform-test pa-migration-test pa-assistant-test pa-bale-test pa-security-test \
+                   pa-durability-test pa-webhook-test pm-1.6.0-smoke pa-theme-compat; do
+            echo "== $t =="
+            wp eval-file "$GITHUB_WORKSPACE/wp-local/tests/$t.php" --path="$WP_DIR"
+          done
+
+  node:
+    name: Node 26.13.0 / npm 12.2.2 popup tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '26.13.0'
+          cache: npm
+          cache-dependency-path: wp-local/tests/js/package-lock.json
+
+      - name: Install npm 12.2.2
+        run: |
+          npm install --global --prefix "$RUNNER_TEMP/npm12" npm@12.2.2
+          "$RUNNER_TEMP/npm12/bin/npm" --version
+          test "$("$RUNNER_TEMP/npm12/bin/npm" --version)" = "12.2.2"
+
+      - name: Install and test
+        run: |
+          NPM="$RUNNER_TEMP/npm12/bin/npm"
+          "$NPM" ci --prefix wp-local/tests/js
+          "$NPM" test --prefix wp-local/tests/js
+          "$NPM" audit --prefix wp-local/tests/js --audit-level=high
+          node --check parsian-assistant/assets/pa-popup.js
+          node --check parsian-music/assets/js/ai-chat.js
+
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          languages: php, javascript-typescript
+          build-mode: none
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+
+  package:
+    name: Production archives
+    runs-on: ubuntu-latest
+    needs: [php, node]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build archives
+        run: |
+          mkdir -p dist
+          (cd parsian-music && zip -qr ../dist/parsian-music.zip . -x '*.git*' -x 'node_modules/*')
+          (cd parsian-assistant && zip -qr ../dist/parsian-assistant.zip . -x '*.git*' -x 'node_modules/*')
+          if unzip -l dist/parsian-music.zip | grep -q node_modules; then exit 1; fi
+          if unzip -l dist/parsian-assistant.zip | grep -q node_modules; then exit 1; fi
+
+      - name: Upload archives
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: parsian-platform-archives
+          path: dist/*.zip
+          if-no-files-found: error
