@@ -1,0 +1,11 @@
+ARG PHP_VERSION=8.5.12
+FROM docker.io/library/php:${PHP_VERSION}-cli
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev default-mysql-client \
+ && docker-php-ext-configure gd --with-freetype --with-jpeg \
+ && docker-php-ext-install -j"$(nproc)" mysqli pdo_mysql zip gd \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN php -r 'foreach (["mysqli","pdo_mysql","mbstring","curl","openssl","zip","xml","gd","Zend OPcache"] as $e) { if (!extension_loaded($e)) { fwrite(STDERR, "missing: $e\n"); exit(1); } } echo "extensions ok\n";'

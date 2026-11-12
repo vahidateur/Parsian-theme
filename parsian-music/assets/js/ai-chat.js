@@ -1,5 +1,13 @@
 /**
  * Parsian floating AI assistant.
+ *
+ * Integration contract (companion plugin):
+ *   window.pmAi.transport = { endpoint, nonce }
+ * When present, submits are sent to that shared-engine endpoint with the
+ * WordPress REST nonce. The theme retains ownership of the form, focus,
+ * starters, busy state, autogrow, error and feedback rendering, so no
+ * handler is ever detached or duplicated. Without the transport the
+ * original theme endpoint is used unchanged.
  */
 (function () {
   'use strict';
@@ -153,6 +161,30 @@
     input.style.height = Math.min(input.scrollHeight, 110) + 'px';
   }
 
+  function sharedTransport() {
+    return window.pmAi && window.pmAi.transport && window.pmAi.transport.endpoint
+      ? window.pmAi.transport
+      : null;
+  }
+
+  function readSessionId() {
+    try {
+      return window.localStorage.getItem('pa_sid') || '';
+    } catch (error) {
+      return '';
+    }
+  }
+
+  function saveSessionId(sid) {
+    try {
+      if (sid) {
+        window.localStorage.setItem('pa_sid', sid);
+      }
+    } catch (error) {
+      // Storage can be unavailable in private contexts; continuity is optional.
+    }
+  }
+
   async function sendMessage(text) {
     if (isBusy || !text) {
       return;
@@ -165,15 +197,21 @@
     resizeInput();
 
     var typing = typingMessage();
+    var transport = sharedTransport();
+    var endpoint = transport ? transport.endpoint : window.pmAi.endpoint;
+    var headers = transport
+      ? { 'Content-Type': 'application/json', 'X-WP-Nonce': transport.nonce || window.pmAi.nonce }
+      : { 'Content-Type': 'application/json', 'X-PM-Nonce': window.pmAi.nonce };
+    var payload = { message: text };
+    if (transport) {
+      payload.sid = readSessionId();
+    }
 
     try {
-      var response = await fetch(window.pmAi.endpoint, {
+      var response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-PM-Nonce': window.pmAi.nonce
-        },
-        body: JSON.stringify({ message: text })
+        headers: headers,
+        body: JSON.stringify(payload)
       });
 
       var data = await response.json();
@@ -184,6 +222,9 @@
         return;
       }
 
+      if (transport && data && data.sid) {
+        saveSessionId(data.sid);
+      }
       var reply = data && data.reply ? data.reply : window.pmAi.error;
       var message = addMessage('bot', reply);
       addSources(data ? data.sources : [], message);

@@ -6,18 +6,28 @@
 
 | جزء | نسخه |
 |---|---|
-| WordPress | 7.1.4 (آخرین نسخه) |
-| PHP | 8.5.4 + GD |
-| MySQL | 8.4.11 LTS |
-| پوسته | parsian-music 1.6.0 (همین پوشهٔ پروژه) |
+| WordPress | 7.1.4 (آخرین نسخهٔ پایدار) |
+| PHP سرویس محلی | 8.5.4 + GD |
+| PHP هدفِ آزمایش‌شده | 8.5.12 و 8.4.27 |
+| MySQL سرویس محلی | 8.4.11 LTS |
+| MySQL هدفِ آزمایش‌شده | 8.4.13 LTS |
+| MariaDB آزمایش‌شده | 12.3.3 LTS (اصلی) / 11.8.9 (سازگاری قبلی) |
+| WP-CLI | 2.12.0 |
+| Node.js / npm (فقط تست JS) | 26.13.0 LTS / 12.2.2 |
+| پوسته | parsian-music 1.6.1 (همین پوشهٔ پروژه) |
 | زبان | فارسی (fa_IR) |
+
+> سرویس محلی موجود (`php8.5` 8.5.4 و MySQL 8.4.11) عمداً دست‌نخورده باقی
+> مانده است. ماتریس 8.5.12/8.4.27 و MySQL 8.4.13/MariaDB 12.3.3 (و 11.8.9) در
+> محیط ایزوله و CI آزمایش شده؛ برای ارتقای سرویس شخصی، تأیید جداگانه لازم است.
+> جزئیات: `docs/PLATFORM-COMPATIBILITY.md`.
 
 ## آدرس‌ها و ورود
 
 - سایت: <http://127.0.0.1:8081>
 - پیشخوان: <http://127.0.0.1:8081/wp-admin/>
 - نام کاربری: `admin`
-- رمز عبور: `ParsianAdmin!2026`
+- رمز عبور: `<ADMIN_PASSWORD>` — مقدار را هنگام نصب محلی یا از متغیر محیطی امن تعیین کنید.
 
 > پورت 8081 انتخاب شده تا با پروژهٔ Laravel (اسکریپت `parsian-dev` که از 8080 استفاده می‌کند) تداخل نداشته باشد.
 
@@ -102,16 +112,21 @@ tail -f site/wp-content/debug.log
 | Host | `127.0.0.1:3307` |
 | Database | `parsian_wp` |
 | User | `parsian` |
-| Password | `Parsian_Local_2026!` |
+| Password | `<DB_PASSWORD>` (از متغیر محیطی امن بخوانید) |
 | Socket | `mysql/run/mysqld.sock` |
 
 اتصال مستقیم:
 
 ```bash
-mysql -h 127.0.0.1 -P 3307 -u parsian -p'Parsian_Local_2026!' parsian_wp
+# متغیر را در محیط محلی خود تنظیم کنید؛ رمز را در فایل ذخیره نکنید.
+: "${DB_PASSWORD:?set DB_PASSWORD in your local environment}"
+mysql -h 127.0.0.1 -P 3307 -u parsian -p"$DB_PASSWORD" parsian_wp
 ```
 
 > پورت 3307 است چون MySQL سیستمی روی 3306 و MariaDB پروژهٔ دیگر روی سوکت جداگانه اجرا می‌شود. هیچ‌کدام تغییر نکرده‌اند.
+>
+> مقادیر واقعی رمز در این مخزن نگهداری نمی‌شوند. اگر رمزهای قدیمی محلی
+> جای دیگری استفاده شده‌اند، آن‌ها را چرخش دهید.
 
 ## WP-CLI
 
@@ -125,6 +140,29 @@ mysql -h 127.0.0.1 -P 3307 -u parsian -p'Parsian_Local_2026!' parsian_wp
 ./wp option get home
 ./wp db export backups/backup-$(date +%F).sql
 ```
+
+برای استفاده از PHP ایزوله (بدون تغییر PHP میزبان):
+
+```bash
+PA_PHP_BIN=/path/to/php8.5.12 ./wp core version
+```
+
+محیط آزمایشگاه ایزوله در `tools/platform-lab/README.md` توضیح داده شده است.
+
+## تست کامل
+
+```bash
+for t in pa-platform-test pa-migration-test pa-assistant-test pa-bale-test pa-security-test \
+         pa-durability-test pa-webhook-test pm-1.6.0-smoke pa-theme-compat; do
+  ./wp eval-file "tests/$t.php"
+done
+
+cd tests/js && npm ci && npm test && npm audit
+```
+
+تست‌های PHP در محیط ایزوله روی PHP 8.4.27/8.5.12، WordPress 7.1.4 و
+MySQL 8.4.13 (و MariaDB 12.3.3؛ 11.8.9 برای سازگاری) اجرا شده‌اند. تست DOM با Node 26.13.0.
+جزئیات و نتایج در `docs/PLATFORM-UPGRADE-2026-11.md`.
 
 ## به‌روزرسانی
 

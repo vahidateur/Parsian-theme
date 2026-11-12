@@ -16,6 +16,14 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
+# Node.js test dependencies
+node_modules/
+npm-debug.log*
+
+# CI/package output
+dist/
+.ci-wordpress/
+
 # Keep release zips out of history bloat (root zip is the installable artifact; keep it)
 # Uncomment to exclude zips as well:
 # *.zip
