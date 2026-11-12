@@ -35,15 +35,15 @@ backward-compatibility evidence.
 
 | Component | Final installed/tested | Source | Result |
 |---|---|---|---|
-| PHP 8.5 | **8.5.12** | php.net release, 2026-10-22 | 169/169; `E_ALL` clean |
-| PHP 8.4 | **8.4.27** | php.net release, 2026-10-22 | 169/169; `E_ALL` clean |
+| PHP 8.5 | **8.5.12** | php.net release, 2026-10-22 | 239/239; `E_ALL` clean |
+| PHP 8.4 | **8.4.27** | php.net release, 2026-10-22 | 239/239 |
 | WordPress | **7.1.4** | wordpress.org, 2026-10-28 | Already latest; checksums + DB check verified |
-| MySQL | **8.4.13 LTS** | MySQL 8.4 notes, 2026-10-20 | 169/169 per PHP version; fresh schema |
-| MariaDB (primary) | **12.3.3 LTS** | mariadb.org, 2026-10-27 image publish | 169/169 per PHP version; fresh `dbDelta` |
-| MariaDB (backward) | **11.8.9 LTS** | mariadb.org, retained | 169/169 per PHP version |
+| MySQL | **8.4.13 LTS** | MySQL 8.4 notes, 2026-10-20 | 239/239 per PHP version; fresh schema |
+| MariaDB (primary) | **12.3.3 LTS** | mariadb.org, 2026-10-27 image publish | 239/239 per PHP version; fresh `dbDelta` |
+| MariaDB (backward) | **11.8.9 LTS** | mariadb.org, retained | 239/239 with PHP 8.5.12 |
 | WP-CLI | **2.12.0** | GitHub release, 2025-05-07 | Latest; PHAR SHA-512 matched |
-| Node.js | **26.13.0 LTS** | nodejs.org, 2026-10-28 | 8/8 popup tests |
-| npm | **12.2.2** | npm registry | `npm ci`, 8/8, 0 audit findings |
+| Node.js | **26.13.0 LTS** | nodejs.org, 2026-10-28 | 22/22 popup tests |
+| npm | **12.2.2** | npm registry | `npm ci`, 22/22, 0 audit findings |
 | Composer | **2.11.1** (verified, not required) | getcomposer.org, 2026-10-30 | No PHP dependencies |
 
 ## Components already current
@@ -77,11 +77,38 @@ backward-compatibility evidence.
   pages, REST, cron, frontend rendering, and persistence passed.
 - No database migration was needed; schema and indexes are identical on
   MySQL 8.4.13, MariaDB 12.3.3, and MariaDB 11.8.9.
-- Node 22 → 26 required a new lockfile and in-repo test path; behavior is 8/8.
+- Node 22 → 26 required a new lockfile and in-repo test path; behavior is 22/22.
 - npm 11.20.0 → 12.2.2 is compatible with Node 26.13.0, preserves the
   lockfile hash, and passes `npm ci`, tests, and audit.
 - The old PHP 7.4 declaration was removed; the minimum is now **8.4.27**
   (security-patched 8.4 branch), with 8.5.12 recommended.
+
+## Post-review remediation (PR #1)
+
+- **Privacy lifecycle (schema 1.0.1):** messages carry a random
+  `privacy_subject` plus a `wp_pa_privacy_subjects` mapping. `/unlink`
+  clears the active account link, revokes unused tokens, closes the
+  conversation, and keeps the subject so export/erasure still work. The
+  eraser removes unlinked history and the mapping idempotently; `delete_user`
+  performs immediate erasure. Upgrade from 1.0.0 is additive and backfills
+  existing linked conversations; fresh install and upgrade are both tested.
+- **Migration backups:** only allowlisted non-secret schema fields enter the
+  snapshot. Secret types and secret-like keys are excluded from both
+  migration and backup. Restore preserves live credentials. Legacy backups
+  are sanitized in place; retention is 30 days / 10 backups and is enforced
+  by `pa_prune`.
+- **Popup:** the clone/replace workaround was replaced by an explicit
+  `window.pmAi.transport` contract. The theme keeps the original form,
+  starters, focus, Enter, autogrow, busy state, errors, and feedback; the
+  plugin only registers the endpoint/nonce and adds a scoped Bale row.
+- **Recovery:** escalated conversations are excluded from automatic AI
+  recovery, surfaced in an operator queue, and marked idempotently. New
+  messages in escalated conversations never trigger an automatic answer.
+- **Concurrency:** `find_or_create()` re-reads the winning row after a
+  unique-key insert collision and never stores `conversation_id = 0`.
+- **Hygiene:** CI checkout uses `persist-credentials: false`; local README
+  passwords were replaced with placeholders; the stale “workflow has not
+  run” note now cites successful run `42645086208`.
 
 ## Test evidence
 
@@ -91,32 +118,34 @@ discarded and re-run cleanly.
 
 ```text
 PHP 8.5.12 + MySQL 8.4.13:
-pa-platform-test        23 passed, 0 failed
-pa-migration-test       16 passed, 0 failed
+pa-platform-test        30 passed, 0 failed
+pa-migration-test       54 passed, 0 failed
 pa-assistant-test       12 passed, 0 failed
-pa-bale-test            12 passed, 0 failed
+pa-bale-test            29 passed, 0 failed
 pa-security-test        14 passed, 0 failed
-pa-durability-test      24 passed, 0 failed
+pa-durability-test      32 passed, 0 failed
 pa-webhook-test         37 passed, 0 failed
 pm-1.6.0-smoke          15 passed, 0 failed
 pa-theme-compat         16 passed, 0 failed
-TOTAL                  169 passed, 0 failed
+TOTAL                  239 passed, 0 failed
 
-PHP 8.4.27 + MySQL 8.4.13: identical 169/169.
-PHP 8.5.12 + MariaDB 12.3.3: identical 169/169.
-PHP 8.4.27 + MariaDB 12.3.3: identical 169/169.
-PHP 8.5.12 + MariaDB 11.8.9: identical 169/169 (backward compatibility).
-PHP 8.4.27 + MariaDB 11.8.9: identical 169/169 (backward compatibility).
-E_ALL (both PHP versions, MySQL 8.4.13 and MariaDB 12.3.3): 169/169, zero
-project deprecations/warnings.
-Node 26.13.0 / npm 12.2.2: 8 passed, 0 failed; npm audit 0 vulnerabilities.
+PHP 8.4.27 + MySQL 8.4.13: identical 239/239.
+PHP 8.5.12 + MariaDB 12.3.3: identical 239/239.
+PHP 8.4.27 + MariaDB 12.3.3: identical 239/239.
+PHP 8.5.12 + MariaDB 11.8.9: identical 239/239 (backward compatibility).
+E_ALL (PHP 8.5.12, MySQL 8.4.13): 239/239, zero project
+deprecations/warnings/notices/fatals.
+Node 26.13.0 / npm 12.2.2: 22 passed, 0 failed; npm audit 0 vulnerabilities.
 Theme compatibility: 16/16 under Parsian, Twenty Twenty-Five, Astra, GeneratePress.
 ```
 
-The previously reported 138 tests remain green (130 PHP + 8 JS). The new
-platform/theme tests add 39 assertions, giving **169 PHP assertions per
-matrix cell**. The 8 popup DOM tests are reported separately under Node
-26.13.0/npm 12.2.2 and are **not** included in any PHP-only cell total.
+The pre-remediation gate reported 169 PHP assertions and 8 DOM tests. The
+remediation adds 70 PHP assertions (privacy lifecycle, upgrade/schema,
+migration backup retention, Bale cache/operator queue) and 14 DOM
+assertions (transport contract and preserved interactions), giving
+**239 PHP assertions per matrix cell** and **22 popup DOM tests**. The DOM
+tests are reported separately under Node 26.13.0/npm 12.2.2 and are **not**
+included in any PHP-only cell total.
 
 Additional checks: PHP lint over all project PHP files, `node --check`,
 `git diff --check`, Core checksums, `wp db check`, admin page render, frontend
@@ -133,7 +162,7 @@ secret 403, plugin deactivation/reactivation with data intact.
 - `mariadb`: PHP 8.4.27 and 8.5.12 on **MariaDB 12.3.3 (current LTS)**,
   plus PHP 8.5.12 on **MariaDB 11.8.9 (backward compatibility)**, all PHP
   suites.
-- `node`: Node 26.13.0, npm 12.2.2, `npm ci`, 8 popup tests, `npm audit`.
+- `node`: Node 26.13.0, npm 12.2.2, `npm ci`, 22 popup tests, `npm audit`.
 - `package`: production theme/plugin ZIPs with no development files.
 
 All actions are pinned to full commit SHAs (comments record the release):
@@ -164,6 +193,8 @@ verification, and the E_ALL project suite remain the security gates.
   conversion; MariaDB testing used a lab-only collation conversion.
 - No Composer dependency audit is applicable because the project has no
   Composer manifest.
-- The GitHub Actions workflow is validated with `actionlint` and every job's
-  steps were reproduced locally with Podman, but it has not executed on
-  GitHub yet because no commit/push/PR was created.
+- The GitHub Actions workflow is validated with `actionlint`, reproduced
+  locally with Podman, and has executed successfully on GitHub for PR #1
+  (run `42645086208` on head `bc64088`: all 7 checks passed, including
+  production archives). The remediation commit is verified by a new run;
+  see the PR checks for the current head.

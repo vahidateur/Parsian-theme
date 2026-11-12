@@ -94,24 +94,54 @@ function pa_link_token_consume( $token, $bale_chat_id ) {
 	}
 	$repo = new PA_Conversation_Repository();
 	$conversation_id = $repo->find_or_create( 'bale', 'bale:' . $bale_chat_id, (int) $row->wp_user_id );
-	$repo->audit( $conversation_id, 'account_linked', array( 'user' => (int) $row->wp_user_id ) );
+	if ( ! $conversation_id ) {
+		return new WP_Error( 'pa_link_store', 'ذخیرهٔ پیوند انجام نشد.', array( 'status' => 500 ) );
+	}
+	$repo->audit( $conversation_id, 'account_linked', array() );
 	return (int) $row->wp_user_id;
 }
 
 /**
  * Unlink a Bale identity from the academy account.
+ *
+ * The active link is removed, but the pseudonymous privacy subject on
+ * existing messages is intentionally retained so WordPress export/erasure
+ * can still find and remove the user's history. Open conversations are
+ * closed so the normal retention policy applies. Re-linking requires a new
+ * one-time token.
  */
 function pa_link_remove( $bale_chat_id ) {
-	$repo = new PA_Conversation_Repository();
-	$conversation_id = $repo->find_or_create( 'bale', 'bale:' . sanitize_text_field( (string) $bale_chat_id ), 0 );
 	global $wpdb;
+	$external_key = 'bale:' . sanitize_text_field( (string) $bale_chat_id );
+	$row = $wpdb->get_row(
+		$wpdb->prepare(
+			"SELECT id, wp_user_id, status FROM " . pa_table( 'conversations' ) . " WHERE channel = %s AND external_key = %s",
+			'bale',
+			$external_key
+		)
+	);
+	if ( ! $row ) {
+		return;
+	}
+	$conversation_id = (int) $row->id;
+	if ( (int) $row->wp_user_id ) {
+		// Revoke unused tokens so an old token cannot silently re-link.
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM " . pa_table( 'link_tokens' ) . " WHERE wp_user_id = %d AND used_at IS NULL",
+				(int) $row->wp_user_id
+			)
+		);
+	}
+	$status = 'open' === $row->status ? 'closed' : $row->status;
 	$wpdb->update(
 		pa_table( 'conversations' ),
-		array( 'wp_user_id' => 0, 'updated_at' => current_time( 'mysql' ) ),
+		array( 'wp_user_id' => 0, 'status' => $status, 'updated_at' => current_time( 'mysql' ) ),
 		array( 'id' => $conversation_id ),
-		array( '%d', '%s' ),
+		array( '%d', '%s', '%s' ),
 		array( '%d' )
 	);
+	$repo = new PA_Conversation_Repository();
 	$repo->audit( $conversation_id, 'account_unlinked', array() );
 }
 

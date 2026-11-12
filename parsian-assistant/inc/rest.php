@@ -213,12 +213,11 @@ function pa_rest_conversations( $request ) {
 }
 
 /**
- * Connection + queue status for admins.
+ * Connection + queue status for admins. Ordinary reads use the cached
+ * summary; pass ?refresh=1 for an explicit getMe/getWebhookInfo check.
  */
 function pa_rest_status( $request ) {
-	$adapter = new PA_Bale_Adapter();
-	$me = $adapter->configured() ? $adapter->get_me() : array( 'success' => false, 'message' => 'توکن تنظیم نشده است.' );
-	$hook = $adapter->configured() ? $adapter->webhook_info() : array( 'success' => false, 'message' => 'توکن تنظیم نشده است.' );
+	$status = $request && $request->get_param( 'refresh' ) ? pa_bale_status_refresh() : pa_bale_status_cached();
 	global $wpdb;
 	$counts = $wpdb->get_results(
 		"SELECT status, COUNT(*) c FROM " . pa_table( 'conversations' ) . " GROUP BY status",
@@ -226,11 +225,20 @@ function pa_rest_status( $request ) {
 	);
 	return rest_ensure_response(
 		array(
-			'bale_configured' => $adapter->configured(),
-			'bale_getme'      => $me,
-			'bale_webhook'    => $hook,
+			'bale_configured' => ! empty( $status['configured'] ),
+			'bale_status'     => $status,
+			'bale_getme'      => array(
+				'success' => ! empty( $status['getme_ok'] ),
+				'message' => isset( $status['getme_message'] ) ? $status['getme_message'] : '',
+			),
+			'bale_webhook'    => array(
+				'success' => ! empty( $status['webhook_ok'] ),
+				'message' => isset( $status['webhook_message'] ) ? $status['webhook_message'] : '',
+			),
 			'webhook_url'     => pa_webhook_url(),
 			'conversations'   => $counts ? $counts : array(),
+			'operator_queue'  => pa_operator_queue( 20 ),
+			'operator_pending' => function_exists( 'pa_operator_pending_count' ) ? pa_operator_pending_count() : 0,
 		)
 	);
 }
@@ -253,11 +261,5 @@ function pa_bale_bot_username( $live = true ) {
 	if ( ! $adapter->configured() ) {
 		return '';
 	}
-	$res = $adapter->get_me();
-	if ( ! empty( $res['success'] ) && isset( $res['body']['result']['username'] ) ) {
-		$username = sanitize_text_field( (string) $res['body']['result']['username'] );
-		update_option( 'pa_bale_bot_username', $username, false );
-		return $username;
-	}
-	return '';
+	return pa_bale_remember_identity( $adapter->get_me() );
 }

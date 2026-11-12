@@ -1,4 +1,4 @@
-# Deployment & Credential Guide — Parsian Assistant 1.0.0
+# Deployment & Credential Guide — Parsian Assistant 1.0.1
 
 ## Platform requirements
 
@@ -28,9 +28,10 @@ The theme and plugin headers declare `Requires PHP: 8.4.27` and
 1. WordPress 7.1.x with the Parsian Music Academy theme `v1.6.1` (required for
    the website popup, Knowledge Base, and notification transport).
 2. Copy `parsian-assistant/` to `wp-content/plugins/` and activate it in
-   **Plugins**. Tables (`wp_pa_*`, version `pa_db_version=1.0.0`) are created
-   on activation; without the theme the plugin still activates but AI answers
-   fall back to "preparing" messages.
+   **Plugins**. Tables (`wp_pa_*`, version `pa_db_version=1.0.1`) are created
+   on activation; the upgrade from 1.0.0 adds the privacy-subject column/
+   table and backfills existing linked conversations. Without the theme the
+   plugin still activates but AI answers fall back to "preparing" messages.
 3. No commit, push, tag, or release is part of this procedure.
 
 ## Credentials (server-side only — never in JS, never in chat)
@@ -60,14 +61,26 @@ then use **Assistant → Poll/Test** to confirm `getMe` again.
   button available as the fallback.
 - Retention: closed (non-open) conversations older than `pa_retention_days`
   (default 90; set to 0 to keep explicitly, max 500/run) are pruned daily
-  with their messages and events. Expired link tokens (>7 days) and
-  processed update ids (>30 days) are pruned daily by `pa_prune`.
-  `delete_user` detaches + closes that user's conversations, drops their
-  tokens, and audits; full text removal is via Tools → Erase Personal Data
-  (registered eraser) or the retention policy.
+  with their messages and events. `/unlink` closes the conversation and
+  keeps only the pseudonymous privacy subject, so retention still applies
+  and the WordPress exporter/eraser can still find the history. `delete_user`
+  performs immediate erasure of that user's messages, tokens, and mapping.
+  Expired link tokens (>7 days), processed update ids (>30 days), orphaned
+  privacy subjects, and expired/excess migration backups are pruned daily by
+  `pa_prune`.
+- Bale status: ordinary admin and REST status reads use cached `getMe`/
+  webhook data. Use **Assistant → بررسی اتصال** (or
+  `pa/v1/status?refresh=1`) for a controlled live refresh. A network timeout
+  keeps the last known bot username; a definitive API rejection clears it.
+- Uninstall: deactivating or deleting the plugin **preserves data by
+  default**; there is no destructive uninstall hook. To remove data
+  explicitly, use **Tools → Erase Personal Data** for each account (removes
+  messages, mapping, tokens) and then drop the `wp_pa_*` tables if the
+  plugin is permanently retired. Take a normal encrypted backup first.
 - Without the plugin: popup, Knowledge Base, and form notifications behave
   exactly as theme v1.6.1. Bale bot, linking, history, and migration are
-  unavailable; the popup hides Bale UI automatically.
+  unavailable; the popup hides Bale UI automatically. The theme's own chat
+  endpoint is used unchanged because the transport contract is absent.
 
 ## What is NOT verified
 

@@ -27,7 +27,7 @@
 - سایت: <http://127.0.0.1:8081>
 - پیشخوان: <http://127.0.0.1:8081/wp-admin/>
 - نام کاربری: `admin`
-- رمز عبور: `ParsianAdmin!2026`
+- رمز عبور: `<ADMIN_PASSWORD>` — مقدار را هنگام نصب محلی یا از متغیر محیطی امن تعیین کنید.
 
 > پورت 8081 انتخاب شده تا با پروژهٔ Laravel (اسکریپت `parsian-dev` که از 8080 استفاده می‌کند) تداخل نداشته باشد.
 
@@ -112,16 +112,21 @@ tail -f site/wp-content/debug.log
 | Host | `127.0.0.1:3307` |
 | Database | `parsian_wp` |
 | User | `parsian` |
-| Password | `Parsian_Local_2026!` |
+| Password | `<DB_PASSWORD>` (از متغیر محیطی امن بخوانید) |
 | Socket | `mysql/run/mysqld.sock` |
 
 اتصال مستقیم:
 
 ```bash
-mysql -h 127.0.0.1 -P 3307 -u parsian -p'Parsian_Local_2026!' parsian_wp
+# متغیر را در محیط محلی خود تنظیم کنید؛ رمز را در فایل ذخیره نکنید.
+: "${DB_PASSWORD:?set DB_PASSWORD in your local environment}"
+mysql -h 127.0.0.1 -P 3307 -u parsian -p"$DB_PASSWORD" parsian_wp
 ```
 
 > پورت 3307 است چون MySQL سیستمی روی 3306 و MariaDB پروژهٔ دیگر روی سوکت جداگانه اجرا می‌شود. هیچ‌کدام تغییر نکرده‌اند.
+>
+> مقادیر واقعی رمز در این مخزن نگهداری نمی‌شوند. اگر رمزهای قدیمی محلی
+> جای دیگری استفاده شده‌اند، آن‌ها را چرخش دهید.
 
 ## WP-CLI
 

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Parsian Assistant
  * Description: Shared assistant engine, Bale adapter, account linking, and legacy theme settings migration for Parsian Music Academy.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Requires at least: 7.1
  * Tested up to: 7.1
  * Requires PHP: 8.4.27
@@ -23,10 +23,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'PA_VERSION', '1.0.0' );
+define( 'PA_VERSION', '1.0.1' );
 define( 'PA_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PA_FILE', __FILE__ );
-define( 'PA_DB_VERSION', '1.0.0' );
+define( 'PA_DB_VERSION', '1.0.1' );
 
 require_once PA_DIR . 'inc/contracts.php';
 require_once PA_DIR . 'inc/store.php';
@@ -40,10 +40,11 @@ require_once PA_DIR . 'inc/admin.php';
 require_once PA_DIR . 'inc/popup.php';
 
 /**
- * Create tables on activation. Never touches theme data.
+ * Create tables on activation and run the idempotent privacy backfill.
  */
 function pa_activate() {
 	pa_store_install();
+	pa_privacy_upgrade();
 	pa_schedule_recovery();
 }
 register_activation_hook( __FILE__, 'pa_activate' );
@@ -57,12 +58,29 @@ function pa_deactivate() {
 register_deactivation_hook( __FILE__, 'pa_deactivate' );
 
 /**
- * Self-heal tables (create-only, no migrations of user data).
+ * Idempotent schema-1.0.1 data upgrade.
+ *
+ * dbDelta adds the privacy_subject column and privacy_subjects table.
+ * Backfill only fills empty subjects, so reruns and fresh installs are
+ * no-ops. Legacy migration backups are sanitized and retention-pruned.
+ */
+function pa_privacy_upgrade() {
+	pa_privacy_backfill_all();
+	if ( function_exists( 'pa_migration_sanitize_legacy_backups' ) ) {
+		pa_migration_sanitize_legacy_backups();
+	}
+}
+
+/**
+ * Self-heal tables and upgrade plugin-owned data between schema versions.
  */
 function pa_maybe_install() {
-	if ( '1.0.0' !== get_option( 'pa_db_version', '' ) ) {
-		pa_store_install();
+	$installed = (string) get_option( 'pa_db_version', '0' );
+	if ( version_compare( $installed, PA_DB_VERSION, '>=' ) ) {
+		return;
 	}
+	pa_store_install();
+	pa_privacy_upgrade();
 }
 add_action( 'init', 'pa_maybe_install', 5 );
 

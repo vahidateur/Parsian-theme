@@ -41,7 +41,7 @@ add_action( 'init', 'pa_schedule_prune', 30 );
  */
 function pa_prune() {
 	global $wpdb;
-	$deleted = array( 'tokens' => 0, 'updates' => 0, 'conversations' => 0, 'messages' => 0, 'events' => 0 );
+	$deleted = array( 'tokens' => 0, 'updates' => 0, 'conversations' => 0, 'messages' => 0, 'events' => 0, 'subjects' => 0, 'backups' => 0 );
 
 	$deleted['tokens'] = (int) $wpdb->query(
 		$wpdb->prepare(
@@ -75,35 +75,47 @@ function pa_prune() {
 			}
 		}
 	}
+
+	// Privacy subjects are pseudonymous retention metadata. Drop mappings
+	// once neither messages nor an active account link reference them.
+	$deleted['subjects'] = (int) $wpdb->query(
+		"DELETE ps FROM " . pa_table( 'privacy_subjects' ) . " ps
+		 WHERE NOT EXISTS ( SELECT 1 FROM " . pa_table( 'messages' ) . " m WHERE m.privacy_subject = ps.subject_hash )
+		   AND NOT EXISTS ( SELECT 1 FROM " . pa_table( 'conversations' ) . " c WHERE c.wp_user_id = ps.wp_user_id )"
+	);
+
+	if ( function_exists( 'pa_migration_prune_backups' ) ) {
+		$deleted['backups'] = (int) pa_migration_prune_backups();
+	}
+
 	return $deleted;
 }
 
 /**
- * On WordPress user deletion: detach their conversations, close them,
- * drop their tokens, and audit. Message text itself is removed only by
- * the retention policy or an explicit Privacy eraser request below, so
- * support records are never silently destroyed on account deletion.
+ * On WordPress user deletion: perform immediate, documented erasure.
+ *
+ * The active account link and all message rows tied to the user's
+ * pseudonymous privacy subject are removed, so account deletion cannot
+ * leave personal history permanently undiscoverable. Support records are
+ * not retained after account deletion; administrators who need a
+ * time-limited support window must export data before deleting the user.
  *
  * @param int $user_id Deleted user ID.
  */
 function pa_user_deleted( $user_id ) {
 	global $wpdb;
 	$user_id = absint( $user_id );
+	if ( ! $user_id ) {
+		return;
+	}
 	$ids = $wpdb->get_col(
 		$wpdb->prepare( "SELECT id FROM " . pa_table( 'conversations' ) . " WHERE wp_user_id = %d", $user_id )
 	);
-	foreach ( $ids as $id ) {
-		$wpdb->update(
-			pa_table( 'conversations' ),
-			array( 'wp_user_id' => 0, 'status' => 'closed', 'updated_at' => current_time( 'mysql' ) ),
-			array( 'id' => $id ),
-			array( '%d', '%s', '%s' ),
-			array( '%d' )
-		);
-		$repo = new PA_Conversation_Repository();
+	$repo = new PA_Conversation_Repository();
+	foreach ( (array) $ids as $id ) {
 		$repo->audit( (int) $id, 'user_deleted', array() );
 	}
-	$wpdb->delete( pa_table( 'link_tokens' ), array( 'wp_user_id' => $user_id ) );
+	pa_erase_user_data( $user_id );
 }
 
 add_filter( 'wp_privacy_personal_data_exporters', 'pa_register_data_exporter' );
@@ -125,16 +137,54 @@ function pa_data_exporter( $email ) {
 		return array( 'data' => array(), 'done' => true );
 	}
 	global $wpdb;
-	$conversations = $wpdb->get_results(
-		$wpdb->prepare( "SELECT id, channel, external_key, status, created_at FROM " . pa_table( 'conversations' ) . " WHERE wp_user_id = %d", $user->ID ),
-		ARRAY_A
-	);
-	$items = array();
-	foreach ( (array) $conversations as $conversation ) {
-		$messages = $wpdb->get_results(
-			$wpdb->prepare( "SELECT role, text, created_at FROM " . pa_table( 'messages' ) . " WHERE conversation_id = %d ORDER BY id ASC", $conversation['id'] ),
+	$subject = pa_privacy_backfill_user( $user->ID );
+	$conversations = array();
+	if ( '' !== $subject ) {
+		$conversations = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT DISTINCT c.id, c.channel, c.status, c.created_at
+				 FROM " . pa_table( 'conversations' ) . " c
+				 INNER JOIN " . pa_table( 'messages' ) . " m ON m.conversation_id = c.id
+				 WHERE m.privacy_subject = %s ORDER BY c.id ASC",
+				$subject
+			),
 			ARRAY_A
 		);
+	}
+	// Include a just-linked conversation that has no messages yet.
+	$linked = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT id, channel, status, created_at FROM " . pa_table( 'conversations' ) . " WHERE wp_user_id = %d ORDER BY id ASC",
+			$user->ID
+		),
+		ARRAY_A
+	);
+	$by_id = array();
+	foreach ( array_merge( (array) $conversations, (array) $linked ) as $conversation ) {
+		$by_id[ (int) $conversation['id'] ] = $conversation;
+	}
+	ksort( $by_id );
+
+	$items = array();
+	foreach ( $by_id as $conversation ) {
+		if ( '' !== $subject ) {
+			$messages = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT role, text, created_at FROM " . pa_table( 'messages' ) . " WHERE conversation_id = %d AND privacy_subject = %s ORDER BY id ASC",
+					$conversation['id'],
+					$subject
+				),
+				ARRAY_A
+			);
+		} else {
+			$messages = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT role, text, created_at FROM " . pa_table( 'messages' ) . " WHERE conversation_id = %d AND ( privacy_subject = '' OR privacy_subject IS NULL ) ORDER BY id ASC",
+					$conversation['id']
+				),
+				ARRAY_A
+			);
+		}
 		$transcript = '';
 		foreach ( (array) $messages as $message ) {
 			$transcript .= '[' . $message['created_at'] . ' ' . $message['role'] . '] ' . $message['text'] . "\n";
@@ -171,18 +221,7 @@ function pa_data_eraser( $email ) {
 	if ( ! $user ) {
 		return array( 'items_removed' => 0, 'items_retained' => false, 'messages' => array(), 'done' => true );
 	}
-	global $wpdb;
-	$ids = $wpdb->get_col(
-		$wpdb->prepare( "SELECT id FROM " . pa_table( 'conversations' ) . " WHERE wp_user_id = %d", $user->ID )
-	);
-	$removed = 0;
-	foreach ( $ids as $id ) {
-		$removed += (int) $wpdb->delete( pa_table( 'messages' ), array( 'conversation_id' => $id ) );
-		$wpdb->delete( pa_table( 'events' ), array( 'conversation_id' => $id ) );
-		$wpdb->delete( pa_table( 'conversations' ), array( 'id' => $id ) );
-		$removed++;
-	}
-	$wpdb->delete( pa_table( 'link_tokens' ), array( 'wp_user_id' => $user->ID ) );
+	$removed = pa_erase_user_data( $user->ID );
 	return array(
 		'items_removed'  => $removed,
 		'items_retained' => false,

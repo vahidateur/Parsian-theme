@@ -166,8 +166,34 @@ class PA_Assistant_Service implements PA_AssistantService {
 
 		$repo = new PA_Conversation_Repository();
 		$conversation_id = $repo->find_or_create( $channel, $external, $user_id );
+		if ( ! $conversation_id ) {
+			return array(
+				'reply'           => 'ذخیرهٔ گفتگو انجام نشد؛ لطفاً دوباره تلاش کنید.',
+				'sources'         => array(),
+				'confidence'      => 0.0,
+				'action'          => 'error',
+				'conversation_id' => 0,
+				'message_id'      => 0,
+			);
+		}
+		$message_id = 0;
 		if ( $log_user ) {
-			$repo->add_message( $conversation_id, 'user', $text );
+			$message_id = $repo->add_message( $conversation_id, 'user', $text );
+		}
+
+		// A human handoff is a product state, not a temporary flag. Never
+		// resume AI replies automatically; the operator queue owns the
+		// conversation until a human resolves it.
+		if ( 'escalated' === $repo->status( $conversation_id ) ) {
+			$repo->audit( $conversation_id, 'handoff_preserved', array( 'message_id' => (int) $message_id ) );
+			return array(
+				'reply'           => 'پیام شما در صف بررسی کارشناس قرار گرفت.',
+				'sources'         => array(),
+				'confidence'      => 0.0,
+				'action'          => 'handoff',
+				'conversation_id' => $conversation_id,
+				'message_id'      => 0,
+			);
 		}
 
 		if ( mb_strlen( $text ) < 2 ) {

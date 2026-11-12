@@ -1,0 +1,62 @@
+/* Parsian Assistant — scoped Bale continuation row. */
+
+.pm-ai-panel .pa-bale-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 14px 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(var(--pm-ai-gold-rgb, 217, 164, 65), .22);
+  border-radius: 12px;
+  background: rgba(var(--pm-ai-gold-rgb, 217, 164, 65), .05);
+  color: var(--pm-ai-text, #f4efe6);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.pm-ai-panel .pa-bale-row__hint {
+  flex: 1 1 190px;
+  min-width: 0;
+  color: var(--pm-ai-muted, #a29b8f);
+  overflow-wrap: anywhere;
+}
+
+.pm-ai-panel .pa-bale-row__btn {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 6px 12px;
+  border: 1px solid rgba(var(--pm-ai-gold-rgb, 217, 164, 65), .5);
+  border-radius: 9px;
+  color: #18120a;
+  background: linear-gradient(180deg, var(--pm-ai-gold-2, #f0c86a), var(--pm-ai-gold, #d9a441));
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pm-ai-panel .pa-bale-row__btn:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.pm-ai-panel .pa-bale-row__btn:focus-visible {
+  outline: 2px solid rgba(var(--pm-ai-gold-rgb, 217, 164, 65), .8);
+  outline-offset: 2px;
+}
+
+.pm-ai-panel .pa-bale-row__btn:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+  .pm-ai-panel .pa-bale-row {
+    margin: 0 10px 8px;
+    padding: 9px 10px;
+  }
+
+  .pm-ai-panel .pa-bale-row__btn {
+    flex: 1 1 100%;
+  }
+}

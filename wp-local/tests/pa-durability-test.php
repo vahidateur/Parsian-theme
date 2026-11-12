@@ -182,16 +182,83 @@ delete_option( 'pa_retention_days' );
 pa_dur_cleanup_chat( 'bale:dur-old' );
 pa_dur_cleanup_chat( 'bale:dur-open' );
 
-// 7. delete_user detaches + closes + audits, keeps text for eraser path.
-$du_user = wp_create_user( 'pa_dutest', wp_generate_password( 12, false ), 'pa_dutest@example.com' );
+// 7. delete_user performs documented immediate erasure.
+$du_email = 'pa_dutest_' . wp_generate_password( 6, false, false ) . '@example.com';
+$du_user = wp_create_user( 'pa_dutest_' . wp_generate_password( 6, false, false ), wp_generate_password( 12, false ), $du_email );
 $du_cid = $repo->find_or_create( 'bale', 'bale:dur-du', $du_user );
 $repo->add_message( $du_cid, 'user', 'حساب حذف‌شونده' );
 wp_delete_user( $du_user );
-$row = $wpdb->get_row( $wpdb->prepare( "SELECT wp_user_id, status FROM " . pa_table( 'conversations' ) . " WHERE id = %d", $du_cid ), ARRAY_A );
-pa_dur_assert( '0' === (string) $row['wp_user_id'] && 'closed' === $row['status'], 'deleted user detached and conversation closed' );
-$text_kept = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM " . pa_table( 'messages' ) . " WHERE conversation_id = %d", $du_cid ) );
-pa_dur_assert( $text_kept > 0, 'message text preserved for explicit eraser path' );
+$du_conv = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM " . pa_table( 'conversations' ) . " WHERE id = %d", $du_cid ) );
+$du_text = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM " . pa_table( 'messages' ) . " WHERE conversation_id = %d", $du_cid ) );
+$du_map = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM " . pa_table( 'privacy_subjects' ) . " WHERE wp_user_id = %d", $du_user ) );
+pa_dur_assert( 0 === $du_conv && 0 === $du_text && 0 === $du_map, 'deleted user data is erased immediately' );
 pa_dur_cleanup_chat( 'bale:dur-du' );
+
+// 8. Link -> unlink -> export/erase across multiple conversations, with
+// an unrelated user whose data must survive.
+$lc_email = 'pa_lifecycle_' . wp_generate_password( 6, false, false ) . '@example.com';
+$lc_user = wp_create_user( 'pa_lifecycle_' . wp_generate_password( 6, false, false ), wp_generate_password( 12, false ), $lc_email );
+$lc_a = $repo->find_or_create( 'bale', 'bale:dur-life-a', $lc_user );
+$repo->add_message( $lc_a, 'user', 'لایف‌سایکل یک' );
+$repo->add_message( $lc_a, 'assistant', 'پاسخ یک' );
+$lc_b = $repo->find_or_create( 'bale', 'bale:dur-life-b', $lc_user );
+$repo->add_message( $lc_b, 'user', 'لایف‌سایکل دو' );
+$lc_subject = (string) $wpdb->get_var( $wpdb->prepare( "SELECT subject_hash FROM " . pa_table( 'privacy_subjects' ) . " WHERE wp_user_id = %d", $lc_user ) );
+pa_dur_assert( '' !== $lc_subject, 'linked user has a pseudonymous privacy subject' );
+
+$other_email = 'pa_other_' . wp_generate_password( 6, false, false ) . '@example.com';
+$other_user = wp_create_user( 'pa_other_' . wp_generate_password( 6, false, false ), wp_generate_password( 12, false ), $other_email );
+$other_cid = $repo->find_or_create( 'bale', 'bale:dur-life-other', $other_user );
+$repo->add_message( $other_cid, 'user', 'دادهٔ کاربر دیگر' );
+
+pa_link_remove( 'dur-life-a' );
+pa_link_remove( 'dur-life-b' );
+$lc_row = $wpdb->get_row( $wpdb->prepare( "SELECT wp_user_id, status FROM " . pa_table( 'conversations' ) . " WHERE id = %d", $lc_a ), ARRAY_A );
+pa_dur_assert( '0' === (string) $lc_row['wp_user_id'] && 'closed' === $lc_row['status'], 'unlink detaches the account and closes the conversation' );
+$lc_map_after_unlink = (string) $wpdb->get_var( $wpdb->prepare( "SELECT subject_hash FROM " . pa_table( 'privacy_subjects' ) . " WHERE wp_user_id = %d", $lc_user ) );
+pa_dur_assert( $lc_map_after_unlink === $lc_subject, 'unlink keeps the privacy mapping for export/erasure' );
+
+$export_after = pa_data_exporter( $lc_email );
+$export_text = '';
+foreach ( (array) $export_after['data'] as $export_item ) {
+	foreach ( (array) $export_item['data'] as $export_field ) {
+		if ( isset( $export_field['name'] ) && 'متن گفتگو' === $export_field['name'] ) {
+			$export_text .= (string) $export_field['value'];
+		}
+	}
+}
+pa_dur_assert( false !== strpos( $export_text, 'لایف‌سایکل یک' ) && false !== strpos( $export_text, 'لایف‌سایکل دو' ), 'exporter finds history after unlink' );
+pa_dur_assert( false === strpos( $export_text, 'دادهٔ کاربر دیگر' ), 'exporter never includes another user data' );
+
+$erased_lifecycle = pa_data_eraser( $lc_email );
+$lc_messages_left = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM " . pa_table( 'messages' ) . " WHERE privacy_subject = %s", $lc_subject ) );
+$lc_map_left = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM " . pa_table( 'privacy_subjects' ) . " WHERE wp_user_id = %d", $lc_user ) );
+pa_dur_assert( ! empty( $erased_lifecycle['items_removed'] ) && 0 === $lc_messages_left && 0 === $lc_map_left, 'eraser removes unlinked history and the mapping' );
+$other_text = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM " . pa_table( 'messages' ) . " WHERE conversation_id = %d AND text = %s", $other_cid, 'دادهٔ کاربر دیگر' ) );
+pa_dur_assert( 1 === $other_text, 'erasure does not affect another user conversation' );
+$repeat_erase = pa_data_eraser( $lc_email );
+pa_dur_assert( 0 === (int) $repeat_erase['items_removed'], 'repeated erasure is idempotent' );
+
+// 9. Unlinked conversations remain covered by retention.
+$ret_email = 'pa_ret_' . wp_generate_password( 6, false, false ) . '@example.com';
+$ret_user = wp_create_user( 'pa_ret_' . wp_generate_password( 6, false, false ), wp_generate_password( 12, false ), $ret_email );
+$ret_cid = $repo->find_or_create( 'bale', 'bale:dur-life-ret', $ret_user );
+$repo->add_message( $ret_cid, 'user', 'گفتگوی رهاشده' );
+pa_link_remove( 'dur-life-ret' );
+$wpdb->query( $wpdb->prepare( "UPDATE " . pa_table( 'conversations' ) . " SET updated_at = %s WHERE id = %d", '2000-01-01 00:00:00', $ret_cid ) );
+update_option( 'pa_retention_days', 1, false );
+pa_prune();
+delete_option( 'pa_retention_days' );
+$ret_gone = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM " . pa_table( 'conversations' ) . " WHERE id = %d", $ret_cid ) );
+pa_dur_assert( 0 === $ret_gone, 'retention prunes unlinked conversations' );
+
+wp_delete_user( $lc_user );
+wp_delete_user( $other_user );
+wp_delete_user( $ret_user );
+pa_dur_cleanup_chat( 'bale:dur-life-a' );
+pa_dur_cleanup_chat( 'bale:dur-life-b' );
+pa_dur_cleanup_chat( 'bale:dur-life-other' );
+pa_dur_cleanup_chat( 'bale:dur-life-ret' );
 
 remove_theme_mod( 'pm_bale_token' );
 

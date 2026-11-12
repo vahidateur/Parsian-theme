@@ -1,4 +1,4 @@
-# Security Notes — Parsian Assistant 1.0.0
+# Security Notes — Parsian Assistant 1.0.1
 
 Accepted audit state. Anything marked NOT IMPLEMENTED is a documented
 limitation, not a claim.
@@ -59,16 +59,37 @@ advisories; the prior 8.5.11/8.4.26 test line must not be used for production.
 ## Privacy
 
 - Stored: conversation text, channel id (Bale chat id / `web:<sid>`),
-  linked WP user id, audit events (no message bodies). External transmission
-  is limited to the configured AI endpoint (question + retrieved context)
-  and Bale `sendMessage` (reply to the user's own chat). WordPress personal
-  data exporter/eraser are registered.
-- Daily `pa_prune`: expired link tokens (>7d), processed update ids (>30d).
-  Closed conversations older than `pa_retention_days` (default 90; 0 = keep
-  explicitly; max 500/run) are deleted with their messages and events.
-- `delete_user` detaches + closes conversations, deletes that user's tokens,
-  and audits; full text removal is via Tools → Erase Personal Data or the
-  retention policy.
+  a pseudonymous `privacy_subject` on each message, a
+  `wp_pa_privacy_subjects` mapping, and audit events (no message bodies).
+  External transmission is limited to the configured AI endpoint (question +
+  retrieved context) and Bale `sendMessage` (reply to the user's own chat).
+  WordPress personal data exporter/eraser are registered.
+- Active account linking is separate from privacy ownership:
+  - `/unlink` clears `wp_user_id`, revokes unused link tokens, and closes an
+    open conversation. It **keeps** the pseudonymous subject so the
+    exporter/eraser can still find history; it deliberately does not delete
+    message content. Re-linking requires a new one-time token.
+  - The exporter resolves the subject and exports only messages carrying it,
+    plus a just-linked conversation with no messages yet. It never exports a
+    different subject's messages from a shared/reused chat.
+  - The eraser deletes every message with the subject (including unlinked
+    conversations), removes the mapping and tokens, and is idempotent. Other
+    users sharing a channel are unaffected.
+  - `delete_user` performs the same immediate erasure. Account deletion does
+    not leave a hidden support copy; export first if a support window is
+    required.
+- Daily `pa_prune`: expired link tokens (>7d), processed update ids (>30d),
+  and closed/escalated conversations older than `pa_retention_days`
+  (default 90; 0 = keep explicitly; max 500/run). Unlinked conversations are
+  closed, so retention applies. Orphaned privacy subjects are removed once
+  no message or active account link references them.
+- Migration backups contain only allowlisted non-secret settings, retain at
+  most 10 snapshots for 30 days, and are sanitized on upgrade. Restore
+  preserves currently configured credentials.
+- Admin status reads use cached `getMe`/webhook data. An explicit
+  **بررسی اتصال** action refreshes the cache; ordinary page loads and REST
+  status reads make no Bale HTTP calls. The bot token is never cached in
+  the status option or localized to JavaScript.
 
 ## Known limitations
 

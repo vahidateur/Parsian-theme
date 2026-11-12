@@ -13,12 +13,17 @@ Create a bot via the official Bale bot father, copy the token, and store it
 per `DEPLOYMENT.md` (`PA_BALE_TOKEN` preferred). Never paste it in chat,
 issues, or frontend code.
 
-## 2. Verify connectivity (mock-safe)
+## 2. Verify connectivity
 
-Open **Assistant → دستیار و پیام‌رسان**. The page calls `getMe`:
+Open **Assistant → دستیار و پیام‌رسان** and press **بررسی اتصال (getMe)**:
 
-- `متصل — @username` → token valid; the username is cached (`pa_bale_bot_username`) for link instructions.
+- `متصل — @username` → token valid; the username is cached
+  (`pa_bale_bot_username`) for the popup's Bale row and link instructions.
 - Anything else → the exact (redacted) error is shown; nothing is sent.
+- The page itself makes no live Bale request. A network timeout keeps the
+  last known username; a definitive token rejection clears it. After
+  provisioning a token, run the explicit refresh once so the popup can show
+  the Bale row.
 
 ## 3. Choose an ingestion mode
 

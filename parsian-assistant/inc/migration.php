@@ -4,9 +4,15 @@
  *
  * Detects theme_mods_{stylesheet} rows left by v1.6.0 installs whose
  * directory had a randomized suffix, previews them, backs them up, and
- * copies only schema-supported keys into theme_mods_parsian-music.
- * Never deletes the source installation or its option. Never runs on
- * frontend page loads — admin action only, capability + nonce gated.
+ * copies only schema-supported non-secret keys into
+ * theme_mods_parsian-music. Never deletes the source installation or its
+ * option. Never runs on frontend page loads — admin action only,
+ * capability + nonce gated.
+ *
+ * Snapshots are allowlisted: only fields that the current theme schema
+ * marks as non-secret are stored. Credentials are never copied into a
+ * backup option and are never migrated from an untrusted legacy option;
+ * administrators provision them through the secure settings flow.
  *
  * @package Parsian_Assistant
  */
@@ -16,6 +22,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'PA_CANONICAL_SLUG', 'parsian-music' );
+define( 'PA_MIGRATION_BACKUP_DAYS', 30 );
+define( 'PA_MIGRATION_BACKUP_MAX', 10 );
 
 /**
  * Sanitize a theme stylesheet slug without lowercasing it.
@@ -71,15 +79,19 @@ function pa_migration_candidates() {
 }
 
 /**
- * Allowlisted destination keys from the current theme schema.
+ * Current theme schema fields (id => type). Null when unavailable.
  *
- * @return array|null Null when the theme schema is unavailable.
+ * @return array|null
  */
-function pa_migration_schema_keys() {
+function pa_migration_schema_fields() {
+	static $fields = null;
+	if ( null !== $fields ) {
+		return $fields;
+	}
 	if ( ! function_exists( 'pm_settings_schema' ) ) {
 		return null;
 	}
-	$keys = array();
+	$fields = array();
 	foreach ( pm_settings_schema() as $tab ) {
 		if ( empty( $tab['sections'] ) ) {
 			continue;
@@ -89,11 +101,108 @@ function pa_migration_schema_keys() {
 				continue;
 			}
 			foreach ( $section['fields'] as $field_id => $field ) {
-				$keys[] = is_string( $field_id ) ? $field_id : ( isset( $field['id'] ) ? $field['id'] : null );
+				$id = is_string( $field_id ) ? $field_id : ( isset( $field['id'] ) ? $field['id'] : '' );
+				if ( '' === $id ) {
+					continue;
+				}
+				$fields[ $id ] = isset( $field['type'] ) ? (string) $field['type'] : '';
 			}
 		}
 	}
-	return array_unique( $keys );
+	return $fields;
+}
+
+/**
+ * Allowlisted destination keys from the current theme schema.
+ *
+ * @return array|null Null when the theme schema is unavailable.
+ */
+function pa_migration_schema_keys() {
+	$fields = pa_migration_schema_fields();
+	return null === $fields ? null : array_keys( $fields );
+}
+
+/**
+ * Whether a key is a credential/secret and must never enter a backup.
+ *
+ * @param string     $key    Theme-mod key.
+ * @param array|null $fields Schema fields; resolved when null.
+ * @return bool
+ */
+function pa_migration_is_secret_key( $key, $fields = null ) {
+	$key = (string) $key;
+	if ( null === $fields ) {
+		$fields = pa_migration_schema_fields();
+	}
+	if ( is_array( $fields ) && isset( $fields[ $key ] ) ) {
+		$type = strtolower( (string) $fields[ $key ] );
+		if ( in_array( $type, array( 'secret', 'password', 'token', 'api_key' ), true ) ) {
+			return true;
+		}
+	}
+	return (bool) preg_match( '/token|api[_-]?key|secret|password|passwd|private[_-]?key|signing[_-]?key|credential|auth[_-]?key|webhook/i', $key );
+}
+
+/**
+ * Reviewed allowlist of non-secret schema keys for backup snapshots.
+ *
+ * @return array|null Null when the theme schema is unavailable.
+ */
+function pa_migration_safe_keys() {
+	$fields = pa_migration_schema_fields();
+	if ( null === $fields ) {
+		return null;
+	}
+	$safe = array();
+	foreach ( $fields as $key => $type ) {
+		if ( ! pa_migration_is_secret_key( $key, $fields ) ) {
+			$safe[] = $key;
+		}
+	}
+	return $safe;
+}
+
+/**
+ * Remove secret keys recursively while preserving every non-secret value.
+ *
+ * @param array $mods Theme mods.
+ * @return array
+ */
+function pa_migration_strip_secrets( $mods ) {
+	$out = array();
+	foreach ( (array) $mods as $key => $value ) {
+		if ( is_string( $key ) && pa_migration_is_secret_key( $key ) ) {
+			continue;
+		}
+		$out[ $key ] = is_array( $value ) ? pa_migration_strip_secrets( $value ) : $value;
+	}
+	return $out;
+}
+
+/**
+ * Build an allowlisted backup snapshot. Unknown keys are omitted when the
+ * theme schema is available; without a schema only secret-like keys are
+ * dropped, which is the conservative fallback.
+ *
+ * @param array $mods Theme mods.
+ * @return array
+ */
+function pa_migration_safe_snapshot( $mods ) {
+	$safe = pa_migration_safe_keys();
+	$out = array();
+	foreach ( (array) $mods as $key => $value ) {
+		if ( ! is_string( $key ) || 0 === strpos( $key, '_' ) ) {
+			continue;
+		}
+		if ( pa_migration_is_secret_key( $key ) ) {
+			continue;
+		}
+		if ( null !== $safe && ! in_array( $key, $safe, true ) ) {
+			continue;
+		}
+		$out[ $key ] = is_array( $value ) ? pa_migration_strip_secrets( $value ) : $value;
+	}
+	return $out;
 }
 
 /**
@@ -116,7 +225,12 @@ function pa_migration_preview( $source_slug ) {
 	$supported = array();
 	$unsupported = array();
 	$conflicts = array();
+	$secrets = array();
 	foreach ( $candidates[ $source_slug ]['mods'] as $key => $value ) {
+		if ( pa_migration_is_secret_key( $key ) ) {
+			$secrets[] = $key;
+			continue;
+		}
 		if ( is_array( $schema_keys ) && ! in_array( $key, $schema_keys, true ) ) {
 			$unsupported[] = $key;
 			continue;
@@ -134,6 +248,7 @@ function pa_migration_preview( $source_slug ) {
 		'supported'     => $supported,
 		'unsupported'   => $unsupported,
 		'conflicts'     => $conflicts,
+		'secrets'       => $secrets,
 		'policy'        => 'fill-empty',
 	);
 }
@@ -178,15 +293,18 @@ function pa_migration_run( $source_slug, $force = false ) {
 		$dest_before = array();
 	}
 
+	$source_snapshot = pa_migration_safe_snapshot( $source_mods );
+	$dest_snapshot = pa_migration_safe_snapshot( $dest_before );
 	$backup_id = 'pa_migration_backup_' . gmdate( 'YmdHis' ) . '_' . substr( md5( $source_slug ), 0, 6 );
 	update_option(
 		$backup_id,
 		array(
-			'source_slug'   => $source_slug,
-			'source_option' => $source_option,
-			'source_mods'   => $source_mods,
-			'dest_before'   => $dest_before,
-			'created_at'    => current_time( 'mysql' ),
+			'source_slug'      => $source_slug,
+			'source_option'    => $source_option,
+			'source_mods'      => $source_snapshot,
+			'dest_before'      => $dest_snapshot,
+			'dest_keys_before' => array_keys( $dest_snapshot ),
+			'created_at'       => current_time( 'mysql' ),
 		),
 		false
 	);
@@ -195,6 +313,9 @@ function pa_migration_run( $source_slug, $force = false ) {
 	$migrated = array();
 	$skipped = array();
 	foreach ( $preview['supported'] as $key ) {
+		if ( ! array_key_exists( $key, $source_mods ) ) {
+			continue;
+		}
 		$value = $source_mods[ $key ];
 		$has_dest = array_key_exists( $key, $dest_mods ) && '' !== $dest_mods[ $key ] && array() !== $dest_mods[ $key ];
 		if ( $has_dest && $dest_mods[ $key ] !== $value ) {
@@ -216,20 +337,24 @@ function pa_migration_run( $source_slug, $force = false ) {
 	}
 
 	$report = array(
-		'completed'            => $verified,
-		'source'               => $source_slug,
-		'migrated'             => $migrated,
-		'skipped_conflicts'    => $skipped,
+		'completed'             => $verified,
+		'source'                => $source_slug,
+		'migrated'              => $migrated,
+		'skipped_conflicts'     => $skipped,
 		'preserved_unsupported' => $preview['unsupported'],
-		'backup'               => $backup_id,
-		'source_preserved'     => true,
+		'secrets_skipped'       => $preview['secrets'],
+		'backup'                => $backup_id,
+		'source_preserved'      => true,
 	);
 	update_option( $record_key, $report, false );
+	pa_migration_prune_backups();
 	return $report;
 }
 
 /**
- * Restore the destination snapshot from a backup.
+ * Restore non-secret destination values from a backup while preserving
+ * currently configured credentials. A redacted/empty backup value can
+ * never overwrite a live token or API key.
  *
  * @param string $backup_id Backup option name.
  * @return bool|WP_Error
@@ -240,12 +365,134 @@ function pa_migration_restore( $backup_id ) {
 		return new WP_Error( 'pa_migration_backup', 'پشتیبان معتبر نیست.' );
 	}
 	$backup = get_option( $backup_id, null );
-	if ( ! is_array( $backup ) || ! isset( $backup['dest_before'] ) ) {
+	if ( ! is_array( $backup ) || ! isset( $backup['dest_before'] ) || ! is_array( $backup['dest_before'] ) ) {
 		return new WP_Error( 'pa_migration_backup', 'پشتیبان پیدا نشد.' );
 	}
-	update_option( 'theme_mods_' . PA_CANONICAL_SLUG, $backup['dest_before'] );
-	delete_option( 'pa_migration_done_' . md5( (string) $backup['source_slug'] ) );
+	$dest_option = 'theme_mods_' . PA_CANONICAL_SLUG;
+	$current = get_option( $dest_option, array() );
+	if ( ! is_array( $current ) ) {
+		$current = array();
+	}
+	$restored = $current;
+	$safe = pa_migration_safe_keys();
+	$known = isset( $backup['dest_keys_before'] ) && is_array( $backup['dest_keys_before'] )
+		? $backup['dest_keys_before']
+		: array_keys( $backup['dest_before'] );
+
+	foreach ( array_keys( $current ) as $key ) {
+		if ( ! is_string( $key ) || 0 === strpos( $key, '_' ) || pa_migration_is_secret_key( $key ) ) {
+			continue;
+		}
+		if ( null !== $safe && ! in_array( $key, $safe, true ) ) {
+			continue;
+		}
+		if ( ! in_array( $key, $known, true ) ) {
+			unset( $restored[ $key ] );
+		}
+	}
+	foreach ( $backup['dest_before'] as $key => $value ) {
+		if ( ! is_string( $key ) || pa_migration_is_secret_key( $key ) ) {
+			continue;
+		}
+		if ( null !== $safe && ! in_array( $key, $safe, true ) ) {
+			continue;
+		}
+		$restored[ $key ] = is_array( $value ) ? pa_migration_strip_secrets( $value ) : $value;
+	}
+	update_option( $dest_option, $restored );
+	$source_slug = isset( $backup['source_slug'] ) ? (string) $backup['source_slug'] : '';
+	delete_option( 'pa_migration_done_' . md5( $source_slug ) );
 	return true;
+}
+
+/**
+ * Delete expired migration backups and bound the number retained.
+ *
+ * @param int $retention_days Default 30; 0 disables age expiry.
+ * @param int $max_backups    Default 10.
+ * @return int Number deleted.
+ */
+function pa_migration_prune_backups( $retention_days = PA_MIGRATION_BACKUP_DAYS, $max_backups = PA_MIGRATION_BACKUP_MAX ) {
+	global $wpdb;
+	$retention_days = absint( $retention_days );
+	$max_backups = max( 1, absint( $max_backups ) );
+	$names = $wpdb->get_col(
+		"SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE 'pa_migration_backup_%'"
+	);
+	$keep = array();
+	$deleted = 0;
+	$cutoff = $retention_days > 0 ? time() - $retention_days * DAY_IN_SECONDS : 0;
+	foreach ( (array) $names as $name ) {
+		$data = get_option( $name, null );
+		$created = 0;
+		if ( is_array( $data ) && ! empty( $data['created_at'] ) ) {
+			$created = (int) strtotime( (string) $data['created_at'] );
+		}
+		if ( ! $created && preg_match( '/^pa_migration_backup_(\d{14})_/', (string) $name, $matches ) ) {
+			$date = \DateTime::createFromFormat( 'YmdHis', $matches[1], new \DateTimeZone( 'UTC' ) );
+			if ( $date ) {
+				$created = $date->getTimestamp();
+			}
+		}
+		if ( $cutoff && $created && $created < $cutoff ) {
+			delete_option( $name );
+			$deleted++;
+			continue;
+		}
+		$keep[] = array( 'name' => $name, 'created' => $created );
+	}
+	usort(
+		$keep,
+		function ( $a, $b ) {
+			return $b['created'] <=> $a['created'];
+		}
+	);
+	foreach ( array_slice( $keep, $max_backups ) as $old ) {
+		delete_option( $old['name'] );
+		$deleted++;
+	}
+	return $deleted;
+}
+
+/**
+ * Remove secrets from backups created before this policy and apply
+ * retention. Values are never logged. Idempotent.
+ *
+ * @return int Number of backup options changed.
+ */
+function pa_migration_sanitize_legacy_backups() {
+	global $wpdb;
+	$names = $wpdb->get_col(
+		"SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE 'pa_migration_backup_%'"
+	);
+	$changed = 0;
+	foreach ( (array) $names as $name ) {
+		$data = get_option( $name, null );
+		if ( ! is_array( $data ) ) {
+			continue;
+		}
+		$new = $data;
+		foreach ( array( 'source_mods', 'dest_before' ) as $field ) {
+			if ( isset( $new[ $field ] ) && is_array( $new[ $field ] ) ) {
+				$new[ $field ] = pa_migration_strip_secrets( $new[ $field ] );
+			}
+		}
+		if ( ! isset( $new['dest_keys_before'] ) && isset( $new['dest_before'] ) && is_array( $new['dest_before'] ) ) {
+			$new['dest_keys_before'] = array_keys( $new['dest_before'] );
+		}
+		if ( empty( $new['created_at'] ) && preg_match( '/^pa_migration_backup_(\d{14})_/', (string) $name, $matches ) ) {
+			$date = \DateTime::createFromFormat( 'YmdHis', $matches[1], new \DateTimeZone( 'UTC' ) );
+			if ( $date ) {
+				$new['created_at'] = gmdate( 'Y-m-d H:i:s', $date->getTimestamp() );
+			}
+		}
+		if ( $new !== $data ) {
+			update_option( $name, $new, false );
+			$changed++;
+		}
+	}
+	pa_migration_prune_backups();
+	return $changed;
 }
 
 /**

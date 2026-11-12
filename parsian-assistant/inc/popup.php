@@ -1,10 +1,10 @@
 <?php
 /**
- * Website popup upgrade: Bale continuation + account linking.
+ * Website popup upgrade: shared-engine transport + Bale continuation.
  *
- * Additive only — the theme's popup markup and ai-chat.js are untouched.
- * This script layers a "continue in Bale" row onto the panel when the
- * plugin is active and a bot username is known.
+ * Additive only. The theme keeps ownership of its form and handlers;
+ * `pa-popup.js` registers an explicit transport contract read by
+ * ai-chat.js and lays the Bale row onto the panel.
  *
  * @package Parsian_Assistant
  */
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 add_action( 'wp_enqueue_scripts', 'pa_popup_assets', 30 );
 
 /**
- * Enqueue the Bale-continuation layer.
+ * Enqueue the shared-engine transport and Bale-continuation layer.
  */
 function pa_popup_assets() {
 	if ( is_admin() || ! function_exists( 'pm_ai_get' ) || '1' !== pm_ai_get( 'ai_enabled' ) ) {
@@ -25,6 +25,12 @@ function pa_popup_assets() {
 	if ( ! wp_script_is( 'pm-ai-chat', 'enqueued' ) ) {
 		return;
 	}
+	wp_enqueue_style(
+		'pa-popup',
+		plugins_url( 'assets/pa-popup.css', PA_FILE ),
+		array( 'pm-ai-chat' ),
+		PA_VERSION
+	);
 	wp_enqueue_script(
 		'pa-popup',
 		plugins_url( 'assets/pa-popup.js', PA_FILE ),

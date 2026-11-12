@@ -125,14 +125,18 @@ $left_tokens = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM " . p
 $left_updates = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM " . pa_table( 'processed_updates' ) . " WHERE update_id = %s", 'sec-old' ) );
 pa_sec_assert( 0 === $left_tokens && 0 === $left_updates, 'expired tokens and old update ids pruned' );
 
-// 8. User deletion detaches conversations and drops tokens.
+// 8. User deletion performs immediate privacy erasure.
 $chat_repo = new PA_Conversation_Repository();
 $link_cid = $chat_repo->find_or_create( 'bale', 'bale:9005', $cap_user );
+$chat_repo->add_message( $link_cid, 'user', 'دادهٔ حذف‌شدنی' );
+$link_subject = pa_privacy_subject_for_user( $cap_user, false );
 wp_delete_user( $cap_user );
-$detached = (int) $wpdb->get_var( $wpdb->prepare( "SELECT wp_user_id FROM " . pa_table( 'conversations' ) . " WHERE id = %d", $link_cid ) );
+$detached = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM " . pa_table( 'conversations' ) . " WHERE id = %d", $link_cid ) );
+$messages_left = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM " . pa_table( 'messages' ) . " WHERE privacy_subject = %s", $link_subject ) );
 $tokens_left = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM " . pa_table( 'link_tokens' ) . " WHERE wp_user_id = %d", $cap_user ) );
-pa_sec_assert( 0 === $detached, 'deleted user detached from conversations' );
-pa_sec_assert( 0 === $tokens_left, 'deleted user tokens removed' );
+$mapping_left = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM " . pa_table( 'privacy_subjects' ) . " WHERE wp_user_id = %d", $cap_user ) );
+pa_sec_assert( 0 === $detached && 0 === $messages_left, 'deleted user conversations and messages erased' );
+pa_sec_assert( 0 === $tokens_left && 0 === $mapping_left, 'deleted user tokens and privacy mapping removed' );
 $wpdb->delete( pa_table( 'messages' ), array( 'conversation_id' => $link_cid ) );
 $wpdb->delete( pa_table( 'events' ), array( 'conversation_id' => $link_cid ) );
 $wpdb->delete( pa_table( 'conversations' ), array( 'id' => $link_cid ) );

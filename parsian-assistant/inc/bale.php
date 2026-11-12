@@ -225,6 +225,97 @@ function pa_webhook_url() {
 }
 
 /**
+ * Cache a validated bot username from a getMe response.
+ *
+ * A network timeout keeps the last known username; a definitive API
+ * rejection (HTTP 4xx) clears it so the UI degrades to "unavailable"
+ * instead of advertising a stale bot. The token itself is never stored
+ * here.
+ *
+ * @param array $result Adapter getMe result.
+ * @return string Cached username (empty when unavailable).
+ */
+function pa_bale_remember_identity( $result ) {
+	$username = '';
+	$success  = is_array( $result ) && ! empty( $result['success'] );
+	if ( $success ) {
+		if ( isset( $result['body']['result']['username'] ) ) {
+			$username = sanitize_text_field( (string) $result['body']['result']['username'] );
+		}
+		if ( '' !== $username ) {
+			update_option( 'pa_bale_bot_username', $username, false );
+		} else {
+			// A successful response without a username cannot drive deep
+			// links; hide the Bale row rather than showing a stale bot.
+			delete_option( 'pa_bale_bot_username' );
+		}
+	} elseif ( is_array( $result ) && ! empty( $result['http'] ) && in_array( (int) $result['http'], array( 401, 403, 404 ), true ) ) {
+		delete_option( 'pa_bale_bot_username' );
+	}
+	update_option( 'pa_bale_identity_checked', time(), false );
+	return $username;
+}
+
+/**
+ * Explicit refresh action: perform getMe + getWebhookInfo once and cache a
+ * non-secret summary. Never called from ordinary admin/status reads.
+ *
+ * @return array Cached status summary.
+ */
+function pa_bale_status_refresh() {
+	$adapter = new PA_Bale_Adapter();
+	if ( ! $adapter->configured() ) {
+		$status = array(
+			'configured'    => false,
+			'username'      => '',
+			'getme_ok'      => false,
+			'getme_message' => 'توکن تنظیم نشده است.',
+			'webhook_ok'    => false,
+			'webhook_message' => 'توکن تنظیم نشده است.',
+			'checked_at'    => time(),
+		);
+		update_option( 'pa_bale_status_cache', $status, false );
+		return $status;
+	}
+	$me   = $adapter->get_me();
+	$hook = $adapter->webhook_info();
+	$username = pa_bale_remember_identity( $me );
+	$status = array(
+		'configured'      => true,
+		'username'        => $username,
+		'getme_ok'        => ! empty( $me['success'] ),
+		'getme_message'   => ! empty( $me['success'] ) ? 'ok' : sanitize_text_field( isset( $me['message'] ) ? (string) $me['message'] : 'unknown' ),
+		'webhook_ok'      => ! empty( $hook['success'] ),
+		'webhook_message' => ! empty( $hook['success'] ) ? 'ok' : sanitize_text_field( isset( $hook['message'] ) ? (string) $hook['message'] : 'unknown' ),
+		'checked_at'      => time(),
+	);
+	// Never persist the webhook URL here: its path segment is a secret.
+	update_option( 'pa_bale_status_cache', $status, false );
+	return $status;
+}
+
+/**
+ * Cached status for ordinary reads. Makes no HTTP request.
+ *
+ * @return array
+ */
+function pa_bale_status_cached() {
+	$status = get_option( 'pa_bale_status_cache', array() );
+	if ( ! is_array( $status ) ) {
+		$status = array();
+	}
+	$adapter = new PA_Bale_Adapter();
+	$status['configured'] = $adapter->configured();
+	$status['username']   = pa_bale_bot_username( false );
+	$status['webhook_set'] = (string) get_option( 'pa_bale_webhook_set', '' );
+	$status['last_error']  = (string) get_option( 'pa_bale_last_error', '' );
+	if ( empty( $status['checked_at'] ) ) {
+		$status['checked_at'] = 0;
+	}
+	return $status;
+}
+
+/**
  * Record a processed update id; returns false if already seen.
  * INSERT-first so concurrent deliveries cannot both win: the UNIQUE key
  * decides, and the loser re-checks rather than trusting a racy SELECT.
@@ -260,7 +351,14 @@ function pa_ingest_bale_update( array $parsed ) {
 	$repo = new PA_Conversation_Repository();
 	$channel_key = 'bale:' . $parsed['chat_id'];
 	$conversation_id = $repo->find_or_create( 'bale', $channel_key, 0 );
-	$repo->add_message( $conversation_id, 'user', $parsed['text'] );
+	if ( ! $conversation_id ) {
+		return '';
+	}
+	$message_id = $repo->add_message( $conversation_id, 'user', $parsed['text'] );
+	if ( 'escalated' === $repo->status( $conversation_id ) ) {
+		$repo->audit( $conversation_id, 'handoff_preserved', array( 'message_id' => (int) $message_id ) );
+		return '';
+	}
 
 	$service = new PA_Assistant_Service();
 	$answer = $service->answer(
@@ -471,6 +569,80 @@ function pa_pending_replies( $stale_minutes = 15, $limit = 100 ) {
 }
 
 /**
+ * Escalated conversations whose latest message is a user message.
+ *
+ * These are deliberately excluded from automatic AI recovery: a human
+ * handoff must stay a human handoff. They are surfaced in the admin
+ * operator queue and marked once with an idempotent audit event so a lost
+ * scheduling event never makes the message invisible.
+ *
+ * @param int $limit Maximum rows.
+ * @return array List of {conversation_id, chat_id, message_id, created_at, text}.
+ */
+function pa_operator_queue( $limit = 100 ) {
+	global $wpdb;
+	$rows = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT m.conversation_id, m.id AS message_id, m.created_at, m.text, c.external_key
+			 FROM " . pa_table( 'messages' ) . " m
+			 INNER JOIN " . pa_table( 'conversations' ) . " c ON c.id = m.conversation_id
+			 INNER JOIN (
+				SELECT conversation_id, MAX(id) AS last_id FROM " . pa_table( 'messages' ) . " GROUP BY conversation_id
+			 ) latest ON latest.conversation_id = m.conversation_id AND latest.last_id = m.id
+			 WHERE c.status = 'escalated' AND c.channel = 'bale' AND m.role = 'user'
+			 ORDER BY m.id DESC LIMIT %d",
+			absint( $limit )
+		),
+		ARRAY_A
+	);
+	$queue = array();
+	foreach ( (array) $rows as $row ) {
+		$queue[] = array(
+			'conversation_id' => (int) $row['conversation_id'],
+			'chat_id'         => preg_replace( '/^bale:/', '', (string) $row['external_key'] ),
+			'message_id'      => (int) $row['message_id'],
+			'created_at'      => (string) $row['created_at'],
+			'text'            => (string) $row['text'],
+		);
+	}
+	return $queue;
+}
+
+/**
+ * Number of escalated conversations awaiting human handling.
+ */
+function pa_operator_pending_count() {
+	return count( pa_operator_queue( 500 ) );
+}
+
+/**
+ * Mark new operator-queue messages once. Repeated recovery runs are no-ops.
+ *
+ * @param int $limit Maximum rows.
+ * @return int Newly marked messages.
+ */
+function pa_mark_operator_queue( $limit = 100 ) {
+	global $wpdb;
+	$marked = 0;
+	foreach ( pa_operator_queue( $limit ) as $job ) {
+		$exists = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM " . pa_table( 'events' ) . " WHERE conversation_id = %d AND event = 'operator_pending' AND payload LIKE %s",
+				$job['conversation_id'],
+				'%' . $wpdb->esc_like( '"message_id":' . (int) $job['message_id'] ) . '}%'
+			)
+		);
+		if ( $exists ) {
+			continue;
+		}
+		$repo = new PA_Conversation_Repository();
+		$repo->audit( $job['conversation_id'], 'operator_pending', array( 'message_id' => (int) $job['message_id'] ) );
+		$marked++;
+	}
+	return $marked;
+}
+
+/**
  * Assistant messages that were persisted but have no delivery record and
  * no queued retry (worker crashed between answer storage and send).
  *
@@ -597,6 +769,9 @@ function pa_recover_pending( $stale_minutes = 15, $limit = 100 ) {
 		}
 		$recovered++;
 	}
+	// Escalated conversations stay with a human operator. Mark new pending
+	// messages for the queue without generating an AI reply.
+	pa_mark_operator_queue( $limit );
 	return $recovered;
 }
 
@@ -720,6 +895,12 @@ function pa_process_bale_reply( $conversation_id, $chat_id ) {
 			ARRAY_A
 		);
 		if ( ! $message || '' === trim( (string) $message['text'] ) ) {
+			return;
+		}
+		if ( 'escalated' === ( new PA_Conversation_Repository() )->status( $conversation_id ) ) {
+			$repo = new PA_Conversation_Repository();
+			$repo->audit( $conversation_id, 'handoff_preserved', array( 'message_id' => (int) $message['id'] ) );
+			pa_mark_operator_queue( 500 );
 			return;
 		}
 		$last_assistant = $wpdb->get_row(

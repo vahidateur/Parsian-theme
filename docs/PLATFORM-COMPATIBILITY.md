@@ -63,12 +63,14 @@ itself does not call image APIs. `intl` is **not** used by the theme or plugin.
   `wp_pa_processed_updates`, `wp_pa_link_tokens`.
 - All tables use InnoDB and `utf8mb4_unicode_520_ci` under WordPress 7.1.4.
 - Unique constraints verified: `conversations(channel, external_key)`,
-  `processed_updates(provider, update_id)`, `link_tokens(token_hash)`.
+  `processed_updates(provider, update_id)`, `link_tokens(token_hash)`,
+  `privacy_subjects(subject_hash)` and `privacy_subjects(wp_user_id)`.
 - `messages.meta` and `events.payload` are JSON encoded into `longtext`; no
   database JSON column or MySQL-only function is required, which keeps
   MariaDB compatible.
-- No schema/version change was required by the platform upgrade
-  (`pa_db_version = 1.0.0`).
+- The platform upgrade needed no schema change; remediation added the
+  additive `pa_db_version = 1.0.1` privacy-subject column/table. The 1.0.0 →
+  1.0.1 upgrade is idempotent and tested on all matrix databases.
 
 ## Non-Parsian themes
 
