@@ -1,0 +1,15 @@
+version: 1
+updated_at: "2026-11-13T00:00:00+03:30"
+entries:
+  - path: "parsian-assistant/inc/example-a.php"
+    task_id: "TASK-001"
+    owner_agent: "unknown-role"
+    mode: "exclusive"
+    workspace: "../parsian-theme-worktrees/task-001"
+    base_commit: "0000000000000000000000000000000000000000"
+    status: "active"
+    lease_started_at: "2026-11-13T00:00:00+03:30"
+    lease_expires_at: "2026-11-14T00:00:00+03:30"
+    last_heartbeat_at: "2026-11-13T00:00:00+03:30"
+    dependencies: []
+    integration_status: "pending"

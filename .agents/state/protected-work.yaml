@@ -1,0 +1,15 @@
+# Protected-work register for Parsian-theme.
+#
+# This repository has no WP_002. WP_002 was a historical reference in the
+# separate parsian-music-dashboard-opus repository. Do not claim it is active
+# here and do not fabricate protected paths.
+#
+# Entries remain empty until the owner explicitly identifies protected paths.
+# The validator requires an explicit owner approval for every entry.
+version: 1
+updated_at: "2026-11-13T20:11:09+03:30"
+entries: []
+notes:
+  - "WP_002 is not present in Parsian-theme and MUST NOT be represented as active."
+  - "No paths are protected by default. Owner approval and explicit paths are required before adding an entry."
+  - "Do not modify the sibling parsian-music-dashboard-opus repository or its uncommitted work."

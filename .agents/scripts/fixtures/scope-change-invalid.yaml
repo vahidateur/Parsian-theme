@@ -1,0 +1,8 @@
+task_id: "TASK-001"
+requested_by: "backend-engineer"
+current_scope:
+  - "parsian-assistant/inc/example-a.php"
+ownership_changes: []
+tests_required: []
+risk: "HIGH"
+status: "PROPOSED"

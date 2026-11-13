@@ -1,0 +1,29 @@
+id: "TASK-002"
+title: "Invalid fixture: missing acceptance criteria"
+status: "PROPOSED"
+owner:
+  agent: "backend-engineer"
+  role: "Backend Engineer"
+workspace:
+  branch: "task/TASK-002-fixture"
+  path: "../parsian-theme-worktrees/task-002"
+  base_commit: "0000000000000000000000000000000000000000"
+permissions:
+  - "WRITE_SCOPED"
+scope:
+  allowed:
+    - "parsian-assistant/inc/example.php"
+  forbidden: []
+dependencies: []
+contracts: []
+acceptance_criteria: []
+tests:
+  required:
+    - "unit"
+  evidence: []
+deliverables:
+  - "Fixture implementation"
+approvals:
+  architecture: "not-required"
+  security: "not-required"
+  integration: "required"

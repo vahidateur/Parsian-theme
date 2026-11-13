@@ -1,0 +1,5 @@
+# Active and released file ownership leases.
+# Empty at bootstrap. Add an entry only through an approved task assignment.
+version: 1
+updated_at: "2026-11-13T20:11:09+03:30"
+entries: []

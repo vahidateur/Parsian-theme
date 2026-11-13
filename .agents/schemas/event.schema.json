@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parsian.local/governance/event.schema.json",
+  "title": "Parsian governance event log",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "events"],
+  "properties": {
+    "version": {"const": 1},
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "timestamp", "actor", "task_id", "type", "description"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^EV-[0-9]{4}$"},
+          "timestamp": {"type": "string", "minLength": 1},
+          "actor": {"type": "string", "minLength": 1},
+          "task_id": {"type": "string", "minLength": 1},
+          "type": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]+$"},
+          "description": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

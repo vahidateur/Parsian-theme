@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parsian.local/governance/execution-state.schema.json",
+  "title": "Parsian multi-agent execution state",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "updated_at",
+    "mode",
+    "milestone",
+    "active_tasks",
+    "blocked_tasks",
+    "active_contracts",
+    "awaiting_approval",
+    "references",
+    "last_validation"
+  ],
+  "properties": {
+    "version": {"const": 1},
+    "updated_at": {"type": "string", "minLength": 1},
+    "mode": {
+      "enum": [
+        "DISCOVERY",
+        "PLANNING",
+        "ARCHITECTURE",
+        "EXECUTION",
+        "INTEGRATION",
+        "VERIFICATION",
+        "RELEASE_PREPARATION",
+        "AWAITING_APPROVAL"
+      ]
+    },
+    "milestone": {"type": "string", "minLength": 1},
+    "active_tasks": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9-]{2,63}$"}
+    },
+    "blocked_tasks": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9-]{2,63}$"}
+    },
+    "active_contracts": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^CONTRACT-[A-Z0-9-]+$"}
+    },
+    "awaiting_approval": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "references": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ownership_registry", "event_log", "protected_work", "decision_register"],
+      "properties": {
+        "ownership_registry": {"type": "string", "minLength": 1},
+        "event_log": {"type": "string", "minLength": 1},
+        "protected_work": {"type": "string", "minLength": 1},
+        "decision_register": {"type": "string", "minLength": 1}
+      }
+    },
+    "last_validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "timestamp", "validator"],
+      "properties": {
+        "status": {"enum": ["PENDING", "PASS", "FAIL"]},
+        "timestamp": {"type": ["string", "null"]},
+        "validator": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

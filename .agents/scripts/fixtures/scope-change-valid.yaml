@@ -1,0 +1,15 @@
+task_id: "TASK-001"
+requested_by: "backend-engineer"
+current_scope:
+  - "parsian-assistant/inc/example-a.php"
+requested_additional_files:
+  - "parsian-assistant/inc/example-b.php"
+reason: "The approved behavior needs a second repository already owned by another task."
+impact: "Requires ownership negotiation with TASK-002; no contract change."
+ownership_changes:
+  - "Release TASK-002 ownership or serialize the tasks."
+tests_required:
+  - "unit"
+  - "integration"
+risk: "MEDIUM"
+status: "PROPOSED"
