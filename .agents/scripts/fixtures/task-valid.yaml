@@ -1,0 +1,31 @@
+id: "TASK-001"
+title: "Valid fixture task"
+status: "PROPOSED"
+owner:
+  agent: "backend-engineer"
+  role: "Backend Engineer"
+workspace:
+  branch: "task/TASK-001-fixture"
+  path: "../parsian-theme-worktrees/task-001"
+  base_commit: "0000000000000000000000000000000000000000"
+permissions:
+  - "WRITE_SCOPED"
+scope:
+  allowed:
+    - "parsian-assistant/inc/example.php"
+  forbidden:
+    - "parsian-assistant/inc/store.php"
+dependencies: []
+contracts: []
+acceptance_criteria:
+  - "The fixture task has a measurable acceptance criterion."
+tests:
+  required:
+    - "unit"
+  evidence: []
+deliverables:
+  - "Fixture implementation"
+approvals:
+  architecture: "not-required"
+  security: "not-required"
+  integration: "required"

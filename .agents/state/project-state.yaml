@@ -1,0 +1,19 @@
+# Canonical execution state for the Parsian multi-agent governance baseline.
+version: 1
+updated_at: "2026-11-13T21:10:32+03:30"
+mode: "PLANNING"
+milestone: "MAG-GOVERNANCE-BASELINE-ACCEPTED"
+active_tasks: []
+blocked_tasks: []
+active_contracts: []
+awaiting_approval:
+  - "Authorization to start the Persistent Settings pilot"
+references:
+  ownership_registry: ".agents/state/ownership-registry.yaml"
+  event_log: ".agents/state/event-log.yaml"
+  protected_work: ".agents/state/protected-work.yaml"
+  decision_register: ".agents/decisions/GOVERNANCE_DECISION_REGISTER.md"
+last_validation:
+  status: "PASS"
+  timestamp: "2026-11-13T21:10:32+03:30"
+  validator: ".agents/scripts/validate-governance.php"

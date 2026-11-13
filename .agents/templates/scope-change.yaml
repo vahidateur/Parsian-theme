@@ -1,0 +1,17 @@
+# Scope-Change Request Template
+# Use when a task needs files outside its approved task contract.
+task_id: "TASK-000"
+requested_by: "backend-engineer"
+current_scope:
+  - "parsian-assistant/inc/example.php"
+requested_additional_files:
+  - "parsian-assistant/inc/another-file.php"
+reason: "Replace with the technical reason."
+impact: "Replace with the impact on other tasks, ownership, and contracts."
+ownership_changes:
+  - "Request ownership of parsian-assistant/inc/another-file.php."
+tests_required:
+  - "unit"
+  - "integration"
+risk: "LOW"
+status: "PROPOSED"

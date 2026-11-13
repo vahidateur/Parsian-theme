@@ -1,0 +1,35 @@
+# Task Contract Template
+# Replace every example value before assigning a real task.
+# The contract is valid only when the Orchestrator has granted ownership.
+id: "TASK-000"
+title: "Example task — replace before assignment"
+status: "PROPOSED"
+owner:
+  agent: "backend-engineer"
+  role: "Backend Engineer"
+workspace:
+  branch: "task/TASK-000-example"
+  path: "../parsian-theme-worktrees/task-000"
+  base_commit: "0000000000000000000000000000000000000000"
+permissions:
+  - "WRITE_SCOPED"
+scope:
+  allowed:
+    - "parsian-assistant/inc/example.php"
+  forbidden:
+    - "parsian-assistant/inc/store.php"
+    - "wp-local/site/"
+dependencies: []
+contracts: []
+acceptance_criteria:
+  - "Replace with a measurable, testable criterion."
+tests:
+  required:
+    - "unit"
+  evidence: []
+deliverables:
+  - "Implementation and tests"
+approvals:
+  architecture: "required"
+  security: "required"
+  integration: "required"
