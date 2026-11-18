@@ -1,0 +1,42 @@
+name: Governance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: governance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  governance:
+    name: Governance validator and Scope Guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - name: PHP syntax check
+        run: |
+          find .agents -type f -name '*.php' -print0 \
+            | xargs -0 -n1 php -l
+
+      - name: Governance validator
+        run: php .agents/scripts/validate-governance.php --all
+
+      - name: Scope Guard regression suite
+        run: php .agents/scripts/tests/validate-task-scope-test.php

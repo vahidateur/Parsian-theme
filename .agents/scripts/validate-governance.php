@@ -228,6 +228,16 @@ final class GovernanceValidator {
 		'OBSERVE', 'ANALYZE', 'PROPOSE', 'WRITE_SCOPED', 'TEST_SCOPED', 'INTEGRATE', 'RELEASE_PREPARE',
 	);
 
+	private const EVENT_KEYS = array(
+		'id', 'timestamp', 'actor', 'task_id', 'type', 'description', 'from_state', 'to_state', 'initial_state',
+	);
+
+	private const TRANSITION_EVENT_TYPES = array( 'TASK_TRANSITION' );
+	private const CREATION_EVENT_TYPES = array( 'TASK_CREATED' );
+	private const APPROVAL_EVENT_TYPES = array( 'APPROVAL_RECORDED' );
+	private const APPROVAL_GATES = array( 'architecture', 'security', 'integration' );
+	private const APPROVERS = array( 'repository-owner', 'orchestrator', 'security-engineer' );
+
 	private const ROLE_SLUGS = array(
 		'orchestrator',
 		'product-analyst',
@@ -263,7 +273,7 @@ final class GovernanceValidator {
 		'VERIFIED' => array( 'COMPLETE', 'SUPERSEDED' ),
 		'BLOCKED' => array( 'ASSIGNED', 'IN_PROGRESS', 'CANCELLED', 'SUPERSEDED' ),
 		'CANCELLED' => array(),
-		'REJECTED' => array( 'SUPERSEDED' ),
+		'REJECTED' => array(),
 		'SUPERSEDED' => array(),
 	);
 
@@ -285,6 +295,8 @@ final class GovernanceValidator {
 		$this->checkOwnershipRegistry();
 		$this->checkExecutionState();
 		$this->checkEventLog();
+		$this->checkTaskContractIntegrity();
+		$this->checkTaskTransitionConsistency();
 		$this->checkProtectedWork();
 		$this->checkIgnoreRules();
 		if ($this->bootstrapScope) {
@@ -353,6 +365,199 @@ final class GovernanceValidator {
 
 		$decisionFixture = @file_get_contents($fixtures . '/decisions-duplicate.md');
 		$cases[] = array( 'decisions-duplicate', $this->validateDecisionRegister((string) $decisionFixture), false );
+
+		$eventLegacy = $this->loadYaml($fixtures . '/event-log-legacy-valid.yaml');
+		$cases[] = array( 'event-log-legacy-valid', $this->validateEventLog($eventLegacy), true );
+
+		$eventTransitionValid = $this->loadYaml($fixtures . '/event-log-transition-valid.yaml');
+		$cases[] = array( 'event-log-transition-valid', $this->validateEventLog($eventTransitionValid), true );
+
+		$eventMissingFrom = $this->loadYaml($fixtures . '/event-log-transition-missing-from.yaml');
+		$cases[] = array( 'event-log-transition-missing-from', $this->validateEventLog($eventMissingFrom), false );
+
+		$eventMissingTo = $this->loadYaml($fixtures . '/event-log-transition-missing-to.yaml');
+		$cases[] = array( 'event-log-transition-missing-to', $this->validateEventLog($eventMissingTo), false );
+
+		$eventInvalidState = $this->loadYaml($fixtures . '/event-log-transition-invalid-state.yaml');
+		$cases[] = array( 'event-log-transition-invalid-state', $this->validateEventLog($eventInvalidState), false );
+
+		$eventInvalidTransition = $this->loadYaml($fixtures . '/event-log-transition-invalid-transition.yaml');
+		$cases[] = array( 'event-log-transition-invalid-transition', $this->validateEventLog($eventInvalidTransition), false );
+
+		$eventFieldsOnNonTransition = $this->loadYaml($fixtures . '/event-log-transition-fields-on-non-transition.yaml');
+		$cases[] = array( 'event-log-transition-fields-on-non-transition', $this->validateEventLog($eventFieldsOnNonTransition), false );
+
+		$eventUnknownProperty = $this->loadYaml($fixtures . '/event-log-unknown-property.yaml');
+		$cases[] = array( 'event-log-unknown-property', $this->validateEventLog($eventUnknownProperty), false );
+
+		$eventInvalidType = $this->loadYaml($fixtures . '/event-log-transition-invalid-type.yaml');
+		$cases[] = array( 'event-log-transition-invalid-type', $this->validateEventLog($eventInvalidType), false );
+
+		$eventMissingActor = $this->loadYaml($fixtures . '/event-log-transition-missing-actor.yaml');
+		$cases[] = array( 'event-log-transition-missing-actor', $this->validateEventLog($eventMissingActor), false );
+
+		$eventRejectedSuperseded = $this->loadYaml($fixtures . '/event-log-transition-rejected-superseded.yaml');
+		$cases[] = array( 'event-log-transition-rejected-superseded', $this->validateEventLog($eventRejectedSuperseded), false );
+
+		$eventInvalidIsoTimestamp = $this->loadYaml($fixtures . '/event-log-transition-invalid-iso-timestamp.yaml');
+		$cases[] = array( 'event-log-transition-invalid-iso-timestamp', $this->validateEventLog($eventInvalidIsoTimestamp), false );
+
+		$eventSchema = json_decode( (string) @file_get_contents( $this->root . '/.agents/schemas/event.schema.json' ), true );
+		$cases[] = array( 'event-schema-transition-contract', $this->validateEventSchemaContract( is_array( $eventSchema ) ? $eventSchema : array() ), true );
+
+		$policy = (string) @file_get_contents( $this->root . '/.agents/policies/task-lifecycle.md' );
+		$cases[] = array( 'event-lifecycle-policy-contract', $this->validateLifecyclePolicyContract( $policy ), true );
+
+		$cases[] = array( 'transition-table-complete', $this->validateTransitionTableCompleteness(), true );
+
+		$schema_base = is_array( $eventSchema ) ? $eventSchema : array();
+		$schema_missing_state = $schema_base;
+		$schema_missing_state['$defs']['lifecycleState']['enum'] = array_values( array_diff( $schema_missing_state['$defs']['lifecycleState']['enum'], array( 'BLOCKED' ) ) );
+		$cases[] = array( 'event-schema-missing-state', $this->validateEventSchemaContract( $schema_missing_state ), false );
+
+		$schema_extra_state = $schema_base;
+		$schema_extra_state['$defs']['lifecycleState']['enum'][] = 'DONE';
+		$cases[] = array( 'event-schema-unexpected-state', $this->validateEventSchemaContract( $schema_extra_state ), false );
+
+		$schema_missing_field = $schema_base;
+		unset( $schema_missing_field['properties']['events']['items']['properties']['from_state'] );
+		$cases[] = array( 'event-schema-missing-transition-field', $this->validateEventSchemaContract( $schema_missing_field ), false );
+
+		$schema_missing_required = $schema_base;
+		$schema_missing_required['properties']['events']['items']['required'] = array_values(
+			array_diff( $schema_missing_required['properties']['events']['items']['required'], array( 'actor' ) )
+		);
+		$cases[] = array( 'event-schema-missing-required-field', $this->validateEventSchemaContract( $schema_missing_required ), false );
+
+		$schema_missing_rule = $schema_base;
+		$schema_missing_rule['properties']['events']['items']['allOf'] = array();
+		$cases[] = array( 'event-schema-missing-transition-rule', $this->validateEventSchemaContract( $schema_missing_rule ), false );
+
+		$schema_additional = $schema_base;
+		$schema_additional['properties']['events']['items']['additionalProperties'] = true;
+		$cases[] = array( 'event-schema-additional-properties', $this->validateEventSchemaContract( $schema_additional ), false );
+
+		$policy_missing_transition = preg_replace( '/^\| `INTEGRATED` \|.*\n/m', '', $policy, 1 );
+		$cases[] = array( 'lifecycle-policy-missing-transition', $this->validateLifecyclePolicyContract( (string) $policy_missing_transition ), false );
+
+		$policy_extra_transition = str_replace(
+			'| `INTEGRATED` | `VERIFIED`, `REJECTED` |',
+			'| `INTEGRATED` | `VERIFIED`, `REJECTED`, `SUPERSEDED` |',
+			$policy
+		);
+		$cases[] = array( 'lifecycle-policy-unexpected-transition', $this->validateLifecyclePolicyContract( $policy_extra_transition ), false );
+
+		$policy_rejected = str_replace(
+			"| `BLOCKED` | `ASSIGNED`, `IN_PROGRESS`, `CANCELLED`, `SUPERSEDED` |",
+			"| `BLOCKED` | `ASSIGNED`, `IN_PROGRESS`, `CANCELLED`, `SUPERSEDED` |\n| `REJECTED` | `SUPERSEDED` |",
+			$policy
+		);
+		$cases[] = array( 'lifecycle-policy-rejected-superseded', $this->validateLifecyclePolicyContract( $policy_rejected ), false );
+
+		$policy_missing_legacy = preg_replace( '/^### Legacy events\s*$/m', '### Legacy notes', $policy, 1 );
+		$cases[] = array( 'lifecycle-policy-missing-legacy-section', $this->validateLifecyclePolicyContract( (string) $policy_missing_legacy ), false );
+
+		$approvalsRequired = array( 'architecture' => 'not-required', 'security' => 'required', 'integration' => 'required' );
+		$approvalsApproved = array( 'architecture' => 'not-required', 'security' => 'approved', 'integration' => 'approved' );
+		$base = '7b5d36d7dd50752d47de0aaa50fc2262ea26b8dd';
+		$create = static function ( string $id, string $task, string $timestamp = '2026-01-01T00:00:00+00:00', string $initial = 'PROPOSED' ): array {
+			return array( 'id' => $id, 'timestamp' => $timestamp, 'actor' => 'orchestrator', 'task_id' => $task, 'type' => 'TASK_CREATED', 'description' => 'Task created', 'initial_state' => $initial );
+		};
+		$transition = static function ( string $id, string $task, string $from, string $to, string $timestamp ): array {
+			return array( 'id' => $id, 'timestamp' => $timestamp, 'actor' => 'orchestrator', 'task_id' => $task, 'type' => 'TASK_TRANSITION', 'description' => 'State changed', 'from_state' => $from, 'to_state' => $to );
+		};
+
+		$taskProposed = array( 'id' => 'T-100', 'status' => 'PROPOSED', 'approvals' => $approvalsRequired );
+		$cases[] = array( 'task-created-only', $this->validateTaskTransitionConsistency( array( 'T-100' => $taskProposed ), array( $create( 'EV-9101', 'T-100' ) ) )[0], true );
+
+		$taskSpecified = array( 'id' => 'T-101', 'status' => 'SPECIFIED', 'approvals' => $approvalsRequired );
+		$eventsSpecified = array( $create( 'EV-9110', 'T-101' ), $transition( 'EV-9111', 'T-101', 'PROPOSED', 'SPECIFIED', '2026-01-02T00:00:00+00:00' ) );
+		$cases[] = array( 'task-transition-valid', $this->validateTaskTransitionConsistency( array( 'T-101' => $taskSpecified ), $eventsSpecified )[0], true );
+
+		$cases[] = array( 'task-missing-creation', $this->validateTaskTransitionConsistency( array( 'T-102' => $taskProposed ), array() )[0], false );
+		$cases[] = array( 'task-created-late-state', $this->validateTaskTransitionConsistency( array( 'T-103' => array( 'id' => 'T-103', 'status' => 'INTEGRATION_READY', 'approvals' => $approvalsApproved ) ), array( $create( 'EV-9112', 'T-103', '2026-01-01T00:00:00+00:00', 'INTEGRATION_READY' ) ) )[0], false );
+		$cases[] = array( 'task-duplicate-creation', $this->validateTaskTransitionConsistency( array( 'T-104' => $taskProposed ), array( $create( 'EV-9113', 'T-104' ), $create( 'EV-9114', 'T-104', '2026-01-02T00:00:00+00:00' ) ) )[0], false );
+		$cases[] = array( 'task-invalid-from-state', $this->validateTaskTransitionConsistency( array( 'T-105' => array( 'id' => 'T-105', 'status' => 'SPECIFIED', 'approvals' => $approvalsRequired ) ), array( $create( 'EV-9115', 'T-105' ), $transition( 'EV-9116', 'T-105', 'DONE', 'SPECIFIED', '2026-01-02T00:00:00+00:00' ) ) )[0], false );
+		$cases[] = array( 'task-invalid-to-state', $this->validateTaskTransitionConsistency( array( 'T-106' => array( 'id' => 'T-106', 'status' => 'SPECIFIED', 'approvals' => $approvalsRequired ) ), array( $create( 'EV-9117', 'T-106' ), $transition( 'EV-9118', 'T-106', 'PROPOSED', 'DONE', '2026-01-02T00:00:00+00:00' ) ) )[0], false );
+		$cases[] = array( 'task-broken-chain', $this->validateTaskTransitionConsistency( array( 'T-107' => array( 'id' => 'T-107', 'status' => 'ASSIGNED', 'approvals' => $approvalsRequired ) ), array( $create( 'EV-9119', 'T-107' ), $transition( 'EV-9120', 'T-107', 'PROPOSED', 'SPECIFIED', '2026-01-02T00:00:00+00:00' ), $transition( 'EV-9121', 'T-107', 'READY', 'ASSIGNED', '2026-01-03T00:00:00+00:00' ) ) )[0], false );
+		$cases[] = array( 'task-unknown-transition', $this->validateTaskTransitionConsistency( array( 'T-108' => $taskProposed ), array( $create( 'EV-9122', 'T-108' ), $transition( 'EV-9123', 'T-999', 'PROPOSED', 'SPECIFIED', '2026-01-02T00:00:00+00:00' ) ) )[0], false );
+		$cases[] = array( 'task-terminal-transition', $this->validateTaskTransitionConsistency( array( 'T-109' => array( 'id' => 'T-109', 'status' => 'VERIFIED', 'approvals' => $approvalsApproved ) ), array( $create( 'EV-9124', 'T-109' ), $transition( 'EV-9125', 'T-109', 'PROPOSED', 'COMPLETE', '2026-01-02T00:00:00+00:00' ), $transition( 'EV-9126', 'T-109', 'COMPLETE', 'VERIFIED', '2026-01-03T00:00:00+00:00' ) ) )[0], false );
+		$cases[] = array( 'task-final-status-mismatch', $this->validateTaskTransitionConsistency( array( 'T-110' => array( 'id' => 'T-110', 'status' => 'INTEGRATED', 'approvals' => $approvalsApproved ) ), array( $create( 'EV-9127', 'T-110' ), $transition( 'EV-9128', 'T-110', 'PROPOSED', 'SPECIFIED', '2026-01-02T00:00:00+00:00' ) ) )[0], false );
+
+		$calendarInvalid = $create( 'EV-9129', 'T-111', '2026-02-30T00:00:00+00:00' );
+		$cases[] = array( 'event-calendar-invalid', $this->validateEventLog( array( 'version' => 1, 'events' => array( $calendarInvalid ) ) ), false );
+		$outOfOrder = array(
+			array( 'id' => 'EV-9130', 'timestamp' => '2026-01-02T00:00:00+00:00', 'actor' => 'orchestrator', 'task_id' => 'MAG-BOOTSTRAP', 'type' => 'VALIDATION_PASSED', 'description' => 'later' ),
+			array( 'id' => 'EV-9131', 'timestamp' => '2026-01-01T00:00:00+00:00', 'actor' => 'orchestrator', 'task_id' => 'MAG-BOOTSTRAP', 'type' => 'VALIDATION_PASSED', 'description' => 'earlier' ),
+		);
+		$cases[] = array( 'event-out-of-order', $this->validateEventLog( array( 'version' => 1, 'events' => $outOfOrder ) ), false );
+
+		$approvalEvidence = array(
+			array( 'id' => 'EV-9200', 'timestamp' => '2026-01-01T00:00:00+00:00', 'actor' => 'repository-owner', 'task_id' => 'T-200', 'type' => 'APPROVAL_RECORDED', 'description' => 'security approved by repository owner' ),
+			array( 'id' => 'EV-9202', 'timestamp' => '2026-01-02T00:00:00+00:00', 'actor' => 'repository-owner', 'task_id' => 'T-200', 'type' => 'APPROVAL_RECORDED', 'description' => 'integration approved by repository owner' ),
+		);
+		$cases[] = array( 'approval-evidence-valid', $this->validateApprovalEvidence( array( array( 'task' => array( 'id' => 'T-200', 'approvals' => $approvalsApproved ) ) ), $approvalEvidence ), true );
+		$cases[] = array( 'approval-evidence-missing', $this->validateApprovalEvidence( array( array( 'task' => array( 'id' => 'T-201', 'approvals' => $approvalsApproved ) ) ), $approvalEvidence ), false );
+		$cases[] = array( 'approval-actor-invalid', $this->validateApprovalEvidence( array( array( 'task' => array( 'id' => 'T-200', 'approvals' => $approvalsApproved ) ) ), array( array( 'id' => 'EV-9201', 'timestamp' => '2026-01-01T00:00:00+00:00', 'actor' => 'backend-engineer', 'task_id' => 'T-200', 'type' => 'APPROVAL_RECORDED', 'description' => 'security approved by repository owner' ) ) ), false );
+		$cases[] = array( 'gate-security-required', $this->validateTaskApprovalGates( array( 'id' => 'T-202', 'status' => 'INTEGRATION_READY', 'approvals' => $approvalsRequired ) ), false );
+		$cases[] = array( 'gate-integration-required', $this->validateTaskApprovalGates( array( 'id' => 'T-203', 'status' => 'INTEGRATED', 'approvals' => $approvalsRequired ) ), false );
+
+		$leaseBase = array( 'path' => '.agents/policies/example.md', 'task_id' => 'T-300', 'owner_agent' => 'documentation-engineer', 'mode' => 'exclusive', 'workspace' => 'worktree-label:t-300', 'base_commit' => $base, 'status' => 'active', 'lease_started_at' => '2026-01-01T00:00:00+00:00', 'lease_expires_at' => '2099-01-01T00:00:00+00:00', 'last_heartbeat_at' => '2026-01-01T00:00:00+00:00', 'dependencies' => array(), 'integration_status' => 'pending' );
+		$registryOk = array( 'version' => 1, 'updated_at' => '2026-01-01T00:00:00+00:00', 'entries' => array( $leaseBase ) );
+		$taskScope = array( 'scope' => array( 'allowed' => array( '.agents/policies/example.md' ) ) );
+		$authorityWrite = array( 'T-300' => array_merge( $taskScope, array( 'permissions' => array( 'WRITE_SCOPED' ) ) ) );
+		$cases[] = array( 'ownership-write-authority', $this->validateOwnership( $registryOk, array( 'T-300' ), $authorityWrite ), true );
+		$cases[] = array( 'ownership-unknown-task', $this->validateOwnership( $registryOk, array(), array() ), false );
+		$cases[] = array( 'ownership-no-authority', $this->validateOwnership( $registryOk, array( 'T-300' ), array( 'T-300' => array_merge( $taskScope, array( 'permissions' => array( 'OBSERVE' ) ) ) ) ), false );
+		$integrateIntegrated = $leaseBase;
+		$integrateIntegrated['integration_status'] = 'integrated';
+		$registryIntegrate = array( 'version' => 1, 'updated_at' => '2026-01-01T00:00:00+00:00', 'entries' => array( $integrateIntegrated ) );
+		$cases[] = array( 'ownership-integrate-integrated', $this->validateOwnership( $registryIntegrate, array( 'T-300' ), array( 'T-300' => array_merge( $taskScope, array( 'permissions' => array( 'INTEGRATE' ) ) ) ) ), false );
+		$expired = $leaseBase;
+		$expired['lease_expires_at'] = '2020-01-01T00:00:00+00:00';
+		$registryExpired = array( 'version' => 1, 'updated_at' => '2026-01-01T00:00:00+00:00', 'entries' => array( $expired ) );
+		$cases[] = array( 'ownership-expired-active', $this->validateOwnership( $registryExpired, array( 'T-300' ), $authorityWrite ), false );
+
+		$createdValid = $this->loadYaml( $fixtures . '/event-log-task-created-valid.yaml' );
+		$cases[] = array( 'event-task-created-valid', $this->validateEventLog( $createdValid ), true );
+		$createdLate = $this->loadYaml( $fixtures . '/event-log-task-created-late-state.yaml' );
+		$cases[] = array( 'event-task-created-late-state', $this->validateEventLog( $createdLate ), false );
+		$createdChronology = $this->loadYaml( $fixtures . '/event-log-task-created-chronology.yaml' );
+		$cases[] = array( 'event-task-created-chronology', $this->validateEventLog( $createdChronology ), false );
+		$createdMissing = $this->loadYaml( $fixtures . '/event-log-task-created-missing.yaml' );
+		$cases[] = array( 'event-task-created-missing', $this->validateTaskTransitionConsistency( array( 'TASK-CREATE-004' => array( 'id' => 'TASK-CREATE-004', 'status' => 'SPECIFIED' ) ), $createdMissing['events'] )[0], false );
+		$createdDuplicate = $this->loadYaml( $fixtures . '/event-log-task-created-duplicate.yaml' );
+		$cases[] = array( 'event-task-created-duplicate', $this->validateTaskTransitionConsistency( array( 'TASK-CREATE-005' => array( 'id' => 'TASK-CREATE-005', 'status' => 'PROPOSED' ) ), $createdDuplicate['events'] )[0], false );
+
+		$cases[] = array( 'gate-security-verified', $this->validateTaskApprovalGates( array( 'id' => 'T-204', 'status' => 'VERIFIED', 'approvals' => $approvalsRequired ) ), false );
+		$cases[] = array( 'approval-evidence-pending-wording', $this->validateApprovalEvidence( array( array( 'task' => array( 'id' => 'T-205', 'approvals' => array( 'architecture' => 'not-required', 'security' => 'approved', 'integration' => 'not-required' ) ) ) ), array( array( 'id' => 'EV-9203', 'timestamp' => '2026-01-01T00:00:00+00:00', 'actor' => 'repository-owner', 'task_id' => 'T-205', 'type' => 'APPROVAL_RECORDED', 'description' => 'security disapproved' ) ) ), false );
+		$schema_no_timestamp_pattern = is_array( $eventSchema ) ? $eventSchema : array();
+		unset( $schema_no_timestamp_pattern['properties']['events']['items']['properties']['timestamp']['pattern'] );
+		$cases[] = array( 'event-schema-missing-timestamp-pattern', $this->validateEventSchemaContract( $schema_no_timestamp_pattern ), false );
+
+		$cases[] = array( 'approval-evidence-disapproved', $this->validateApprovalEvidence( array( array( 'task' => array( 'id' => 'T-206', 'approvals' => array( 'architecture' => 'not-required', 'security' => 'approved', 'integration' => 'not-required' ) ) ) ), array( array( 'id' => 'EV-9204', 'timestamp' => '2026-01-01T00:00:00+00:00', 'actor' => 'repository-owner', 'task_id' => 'T-206', 'type' => 'APPROVAL_RECORDED', 'description' => 'security disapproved' ) ) ), false );
+		$schema_wrong_pattern = is_array( $eventSchema ) ? $eventSchema : array();
+		$schema_wrong_pattern['properties']['events']['items']['properties']['timestamp']['pattern'] = 'd{4}';
+		$cases[] = array( 'event-schema-wrong-timestamp-pattern', $this->validateEventSchemaContract( $schema_wrong_pattern ), false );
+
+		$leaseForF2 = static function ( string $path, string $integrationStatus = 'pending' ) use ( $leaseBase ): array {
+			$lease = $leaseBase;
+			$lease['path'] = $path;
+			$lease['integration_status'] = $integrationStatus;
+			return $lease;
+		};
+		$registryForF2 = static function ( array $lease ): array {
+			return array( 'version' => 1, 'updated_at' => '2026-01-01T00:00:00+00:00', 'entries' => array( $lease ) );
+		};
+		$knownF2 = array( 'T-300' );
+		$cases[] = array( 'scope-exact-file', $this->validateOwnership( $registryForF2( $leaseForF2( '.agents/policies/example.md' ) ), $knownF2, array( 'T-300' => array( 'permissions' => array( 'WRITE_SCOPED' ), 'scope' => array( 'allowed' => array( '.agents/policies/example.md' ) ) ) ) ), true );
+		$cases[] = array( 'scope-inside-directory', $this->validateOwnership( $registryForF2( $leaseForF2( '.agents/policies/example.md' ) ), $knownF2, array( 'T-300' => array( 'permissions' => array( 'WRITE_SCOPED' ), 'scope' => array( 'allowed' => array( '.agents/policies/' ) ) ) ) ), true );
+		$cases[] = array( 'scope-outside', $this->validateOwnership( $registryForF2( $leaseForF2( '.agents/policies/example.md' ) ), $knownF2, array( 'T-300' => array( 'permissions' => array( 'WRITE_SCOPED' ), 'scope' => array( 'allowed' => array( '.agents/state/' ) ) ) ) ), false );
+		$cases[] = array( 'scope-prefix-confusion', $this->validateOwnership( $registryForF2( $leaseForF2( 'src/store-old' ) ), $knownF2, array( 'T-300' => array( 'permissions' => array( 'WRITE_SCOPED' ), 'scope' => array( 'allowed' => array( 'src/store' ) ) ) ) ), false );
+		$cases[] = array( 'scope-parent-traversal', $this->validateOwnership( $registryForF2( $leaseForF2( '../evil.php' ) ), $knownF2, array( 'T-300' => array( 'permissions' => array( 'WRITE_SCOPED' ), 'scope' => array( 'allowed' => array( '.agents/policies/' ) ) ) ) ), false );
+		$cases[] = array( 'scope-malformed-absolute', $this->validateOwnership( $registryForF2( $leaseForF2( '/etc/passwd' ) ), $knownF2, array( 'T-300' => array( 'permissions' => array( 'WRITE_SCOPED' ), 'scope' => array( 'allowed' => array( '.agents/policies/' ) ) ) ) ), false );
+		$cases[] = array( 'scope-integrate-valid', $this->validateOwnership( $registryForF2( $leaseForF2( '.agents/policies/example.md', 'pending' ) ), $knownF2, array( 'T-300' => array( 'permissions' => array( 'INTEGRATE' ), 'scope' => array( 'allowed' => array( '.agents/policies/' ) ) ) ) ), true );
+		$cases[] = array( 'scope-multiple-allowed', $this->validateOwnership( $registryForF2( $leaseForF2( '.agents/policies/example.md' ) ), $knownF2, array( 'T-300' => array( 'permissions' => array( 'WRITE_SCOPED' ), 'scope' => array( 'allowed' => array( '.agents/other/file.md', '.agents/policies/example.md' ) ) ) ) ), true );
 
 		foreach ( $cases as $case ) {
 			list( $label, $errors, $expectValid ) = $case;
@@ -431,6 +636,18 @@ final class GovernanceValidator {
 			'.agents/scripts/fixtures/scope-change-valid.yaml',
 			'.agents/scripts/fixtures/scope-change-invalid.yaml',
 			'.agents/scripts/fixtures/decisions-duplicate.md',
+			'.agents/scripts/fixtures/event-log-legacy-valid.yaml',
+			'.agents/scripts/fixtures/event-log-transition-valid.yaml',
+			'.agents/scripts/fixtures/event-log-transition-missing-from.yaml',
+			'.agents/scripts/fixtures/event-log-transition-missing-to.yaml',
+			'.agents/scripts/fixtures/event-log-transition-invalid-state.yaml',
+			'.agents/scripts/fixtures/event-log-transition-invalid-transition.yaml',
+			'.agents/scripts/fixtures/event-log-transition-fields-on-non-transition.yaml',
+			'.agents/scripts/fixtures/event-log-unknown-property.yaml',
+			'.agents/scripts/fixtures/event-log-transition-invalid-type.yaml',
+			'.agents/scripts/fixtures/event-log-transition-missing-actor.yaml',
+			'.agents/scripts/fixtures/event-log-transition-rejected-superseded.yaml',
+			'.agents/scripts/fixtures/event-log-transition-invalid-iso-timestamp.yaml',
 		);
 		$missing = array();
 		foreach ( $required as $relative ) {
@@ -589,7 +806,17 @@ final class GovernanceValidator {
 
 	private function checkOwnershipRegistry(): void {
 		$registry = $this->loadYaml( $this->root . '/.agents/state/ownership-registry.yaml' );
-		$errors = $this->validateOwnership( $registry, array() );
+		$known = array();
+		$authority = array();
+		foreach ( $this->loadTaskRecords() as $record ) {
+			$id = (string) ( $record['task']['id'] ?? '' );
+			if ( '' === $id ) {
+				continue;
+			}
+			$known[ $id ] = true;
+			$authority[ $id ] = $record['task'];
+		}
+		$errors = $this->validateOwnership( $registry, array_keys( $known ), $authority );
 		if ( array() === $errors ) {
 			$this->pass( 'ownership registry validates' );
 		} else {
@@ -664,13 +891,13 @@ final class GovernanceValidator {
 			if ( false !== strpos( $path, ' -> ' ) ) {
 				$path = trim( explode( ' -> ', $path, 2 )[1] );
 			}
-			if ( 'AGENTS.md' === $path || 0 === strpos( $path, '.agents/' ) ) {
+			if ( 'AGENTS.md' === $path || 0 === strpos( $path, '.agents/' ) || '.github/workflows/governance.yml' === $path ) {
 				continue;
 			}
 			$bad[] = $path;
 		}
 		if ( array() === $bad ) {
-			$this->pass( 'bootstrap scope: changes limited to AGENTS.md and .agents/' );
+			$this->pass( 'bootstrap scope: changes limited to governance paths' );
 		} else {
 			$this->error( 'bootstrap scope violation: ' . implode( ', ', $bad ) );
 		}
@@ -818,7 +1045,7 @@ final class GovernanceValidator {
 		return $errors;
 	}
 
-	private function validateOwnership(array $registry, ?array $knownTaskIds = null): array {
+	private function validateOwnership(array $registry, ?array $knownTaskIds = null, ?array $authorityMap = null): array {
 		$errors = array();
 		if ( 1 !== (int) ( $registry['version'] ?? 0 ) ) {
 			$errors[] = 'ownership version must be 1';
@@ -855,7 +1082,7 @@ final class GovernanceValidator {
 			if ( ! empty( $entry['owner_agent'] ) && ! in_array( $entry['owner_agent'], self::ROLE_SLUGS, true ) ) {
 				$errors[] = $label . ' has unknown owner_agent: ' . (string) $entry['owner_agent'];
 			}
-			if ( is_array( $knownTaskIds ) && array() !== $knownTaskIds && ! in_array( $entry['task_id'] ?? '', $knownTaskIds, true ) ) {
+			if ( is_array( $knownTaskIds ) && ! in_array( $entry['task_id'] ?? '', $knownTaskIds, true ) ) {
 				$errors[] = $label . ' references unknown task: ' . (string) ( $entry['task_id'] ?? '' );
 			}
 			if ( ! in_array( $entry['mode'] ?? '', array( 'exclusive', 'scoped' ), true ) ) {
@@ -883,6 +1110,42 @@ final class GovernanceValidator {
 				$errors[] = $label . ' dependencies must be an array';
 			}
 			if ( 'active' === ( $entry['status'] ?? '' ) ) {
+				$task_id = (string) ( $entry['task_id'] ?? '' );
+				if ( is_array( $authorityMap ) && isset( $authorityMap[ $task_id ] ) ) {
+					$task = $authorityMap[ $task_id ];
+					$permissions = is_array( $task['permissions'] ?? null ) ? $task['permissions'] : array();
+					$hasWrite = in_array( 'WRITE_SCOPED', $permissions, true );
+					$hasIntegrate = in_array( 'INTEGRATE', $permissions, true );
+					if ( ! $hasWrite && ! $hasIntegrate ) {
+						$errors[] = $label . ' active lease requires WRITE_SCOPED or INTEGRATE on task ' . $task_id;
+					}
+					if ( ! $hasWrite && $hasIntegrate && 'pending' !== ( $entry['integration_status'] ?? '' ) ) {
+						$errors[] = $label . ' integration-only active lease must have integration_status pending';
+					}
+					$allowedPaths = is_array( $task['scope']['allowed'] ?? null ) ? $task['scope']['allowed'] : array();
+					$path         = (string) ( $entry['path'] ?? '' );
+					if ( array() === $allowedPaths ) {
+						$errors[] = $label . ' active lease task ' . $task_id . ' has no allowed scope';
+					} else {
+						$withinScope = false;
+						foreach ( $allowedPaths as $allowedPath ) {
+							if ( ! is_string( $allowedPath ) || ! $this->safePath( $allowedPath ) ) {
+								continue;
+							}
+							if ( $this->pathWithinScope( $allowedPath, $path ) ) {
+								$withinScope = true;
+								break;
+							}
+						}
+						if ( ! $withinScope ) {
+							$errors[] = $label . ' path "' . $path . '" is outside the allowed scope of task ' . $task_id;
+						}
+					}
+				}
+				$expires = strtotime( (string) ( $entry['lease_expires_at'] ?? '' ) );
+				if ( false !== $expires && $expires < time() ) {
+					$errors[] = $label . ' active lease is expired';
+				}
 				$active[] = $entry;
 			}
 		}
@@ -983,6 +1246,517 @@ final class GovernanceValidator {
 		return $errors;
 	}
 
+	private function validateEventSchemaContract(array $schema): array {
+		$errors = array();
+		if ( ($schema['$schema'] ?? '') !== 'https://json-schema.org/draft/2020-12/schema' ) {
+			$errors[] = 'event schema must declare JSON Schema draft 2020-12';
+		}
+		if ( ($schema['additionalProperties'] ?? null) !== false ) {
+			$errors[] = 'event log schema must reject unknown top-level properties';
+		}
+		$state_enum = $schema['$defs']['lifecycleState']['enum'] ?? null;
+		if ( ! is_array( $state_enum ) ) {
+			$errors[] = 'event schema lifecycleState enum is missing';
+		} else {
+			$enum_sorted = $state_enum;
+			sort( $enum_sorted );
+			$states_sorted = self::TASK_STATES;
+			sort( $states_sorted );
+			if ( $enum_sorted !== $states_sorted ) {
+				$errors[] = 'event schema lifecycleState enum does not semantically match the task lifecycle states';
+			}
+		}
+		$item = $schema['properties']['events']['items'] ?? null;
+		if ( ! is_array( $item ) ) {
+			return array_merge( $errors, array( 'event schema items definition is missing' ) );
+		}
+		if ( ($item['additionalProperties'] ?? null) !== false ) {
+			$errors[] = 'event schema items must reject unknown event properties';
+		}
+		$required = is_array( $item['required'] ?? null ) ? $item['required'] : array();
+		foreach ( array( 'id', 'timestamp', 'actor', 'task_id', 'type', 'description' ) as $field ) {
+			if ( ! in_array( $field, $required, true ) ) {
+				$errors[] = 'event schema is missing required field ' . $field;
+			}
+		}
+		$properties = is_array( $item['properties'] ?? null ) ? $item['properties'] : array();
+		$expectedTimestampPattern = '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$';
+		if ( ($properties['timestamp']['pattern'] ?? '') !== $expectedTimestampPattern ) {
+			$errors[] = 'event schema timestamp must declare the strict ISO-8601 pattern';
+		}
+		foreach ( array( 'from_state', 'to_state', 'initial_state' ) as $field ) {
+			if ( ! isset( $properties[ $field ] ) ) {
+				$errors[] = 'event schema must define ' . $field;
+				continue;
+			}
+			if ( ($properties[ $field ]['$ref'] ?? '') !== '#/$defs/lifecycleState' ) {
+				$errors[] = 'event schema ' . $field . ' must reference the lifecycleState definition';
+			}
+		}
+		$all_of = is_array( $item['allOf'] ?? null ) ? $item['allOf'] : array();
+		$has_transition_rule = false;
+		$has_pair_rule       = false;
+		$has_exclusive_rule  = false;
+		$has_creation_rule = false;
+		$has_initial_rule = false;
+		foreach ( $all_of as $rule ) {
+			if ( ! is_array( $rule ) ) {
+				continue;
+			}
+			$if   = is_array( $rule['if'] ?? null ) ? $rule['if'] : array();
+			$then = is_array( $rule['then'] ?? null ) ? $rule['then'] : array();
+			$then_required = is_array( $then['required'] ?? null ) ? $then['required'] : array();
+			if ( ($if['properties']['type']['const'] ?? null) === 'TASK_TRANSITION'
+				&& in_array( 'from_state', $then_required, true )
+				&& in_array( 'to_state', $then_required, true ) ) {
+				$has_transition_rule = true;
+			}
+			if ( is_array( $if['anyOf'] ?? null )
+				&& in_array( 'from_state', $then_required, true )
+				&& in_array( 'to_state', $then_required, true ) ) {
+				$has_pair_rule = true;
+			}
+			if ( ($if['properties']['type']['not']['const'] ?? null) === 'TASK_TRANSITION'
+				&& is_array( $then['not']['anyOf'] ?? null ) ) {
+				$has_exclusive_rule = true;
+			}
+			if ( ($if['properties']['type']['const'] ?? null) === 'TASK_CREATED'
+				&& in_array( 'initial_state', $then_required, true ) ) {
+				$has_creation_rule = true;
+			}
+			if ( is_array( $if['anyOf'] ?? null )
+				&& in_array( 'initial_state', array_map( static function ( $entry ) { return is_array( $entry ) ? (string) ( $entry['required'][0] ?? '' ) : ''; }, $if['anyOf'] ), true )
+				&& ($then['properties']['type']['const'] ?? null) === 'TASK_CREATED' ) {
+				$has_initial_rule = true;
+			}
+		}
+		if ( ! $has_transition_rule ) {
+			$errors[] = 'event schema must require from_state and to_state for TASK_TRANSITION';
+		}
+		if ( ! $has_pair_rule ) {
+			$errors[] = 'event schema must require both fields when either transition field is present';
+		}
+		if ( ! $has_exclusive_rule ) {
+			$errors[] = 'event schema must reject transition fields on non-transition events';
+		}
+		if ( ! $has_creation_rule ) {
+			$errors[] = 'event schema must require initial_state for TASK_CREATED';
+		}
+		if ( ! $has_initial_rule ) {
+			$errors[] = 'event schema must allow initial_state only on TASK_CREATED';
+		}
+		return $errors;
+	}
+
+	/**
+	 * Parse the policy's allowed-transitions table and terminal-state declaration.
+	 *
+	 * @return array{0: array<string, list<string>>|null, 1: list<string>}
+	 */
+	private function parsePolicyTransitions(string $policy): array {
+		$errors = array();
+		if ( ! preg_match( '/^## Allowed transitions\s*$(.*?)(?=^##\s)/ms', $policy, $match ) ) {
+			return array( null, array( 'task lifecycle policy is missing the Allowed transitions section' ) );
+		}
+		$transitions = array();
+		$found       = false;
+		foreach ( preg_split( '/\r\n|\n|\r/', $match[1] ) as $line ) {
+			if ( ! preg_match( '/^\|\s*`([A-Z_]+)`\s*\|\s*(.*?)\s*\|$/', trim( $line ), $row ) ) {
+				continue;
+			}
+			$found = true;
+			$from  = $row[1];
+			$tos   = array();
+			$cell  = trim( $row[2] );
+			if ( '' !== $cell && '—' !== $cell && '-' !== $cell ) {
+				foreach ( preg_split( '/,/', $cell ) as $part ) {
+					$part = trim( $part );
+					if ( ! preg_match( '/^`([A-Z_]+)`$/', $part, $target ) ) {
+						$errors[] = 'task lifecycle policy has an invalid transition target for ' . $from . ': ' . $part;
+						continue;
+					}
+					$tos[] = $target[1];
+				}
+			}
+			if ( isset( $transitions[ $from ] ) ) {
+				$errors[] = 'task lifecycle policy has duplicate transition rows for ' . $from;
+			}
+			$transitions[ $from ] = array_values( array_unique( $tos ) );
+		}
+		if ( ! $found ) {
+			$errors[] = 'task lifecycle policy transition table has no parsable rows';
+		}
+		if ( ! preg_match( '/^Terminal states:\s*(.*)$/m', $policy, $terminal ) ) {
+			$errors[] = 'task lifecycle policy is missing the terminal-state declaration';
+		} else {
+			preg_match_all( '/`([A-Z_]+)`/', $terminal[1], $states );
+			foreach ( $states[1] as $state ) {
+				if ( ! isset( $transitions[ $state ] ) ) {
+					$transitions[ $state ] = array();
+				}
+			}
+		}
+		foreach ( array_keys( $transitions ) as $state ) {
+			if ( ! in_array( $state, self::TASK_STATES, true ) ) {
+				$errors[] = 'task lifecycle policy contains unknown state ' . $state;
+			}
+		}
+		ksort( $transitions );
+		foreach ( $transitions as &$tos ) {
+			sort( $tos );
+		}
+		unset( $tos );
+		return array( $transitions, $errors );
+	}
+
+	/**
+	 * @param  array<string, list<string>>  $map
+	 * @return array<string, list<string>>
+	 */
+	private function normalizeTransitionMap(array $map): array {
+		$normalized = array();
+		foreach ( $map as $from => $tos ) {
+			$tos = array_values( array_unique( array_map( 'strval', (array) $tos ) ) );
+			sort( $tos );
+			$normalized[ (string) $from ] = $tos;
+		}
+		ksort( $normalized );
+		return $normalized;
+	}
+
+	/**
+	 * @param  array<string, list<string>>  $policy_transitions
+	 * @return list<string>
+	 */
+	private function validateTransitionTableContract(array $policy_transitions): array {
+		$errors   = array();
+		$policy   = $this->normalizeTransitionMap( $policy_transitions );
+		$validator = $this->normalizeTransitionMap( self::TRANSITIONS );
+		foreach ( array_diff( array_keys( $validator ), array_keys( $policy ) ) as $missing ) {
+			$errors[] = 'task lifecycle policy is missing transition row for ' . $missing;
+		}
+		foreach ( array_diff( array_keys( $policy ), array_keys( $validator ) ) as $unexpected ) {
+			$errors[] = 'task lifecycle policy contains unexpected transition row for ' . $unexpected;
+		}
+		foreach ( array_intersect( array_keys( $validator ), array_keys( $policy ) ) as $state ) {
+			if ( $validator[ $state ] !== $policy[ $state ] ) {
+				$errors[] = sprintf(
+					'task lifecycle policy transition mismatch for %s: policy [%s] vs validator [%s]',
+					$state,
+					implode( ',', $policy[ $state ] ),
+					implode( ',', $validator[ $state ] )
+				);
+			}
+		}
+		return $errors;
+	}
+
+	private function validateLifecyclePolicyContract(string $policy): array {
+		$errors = array();
+		foreach (
+			array(
+				'/^## Task creation events\s*$/m'                      => 'Task creation events section',
+				'/^## Lifecycle transition events\s*$/m'                => 'Lifecycle transition events section',
+				'/^### Legacy events\s*$/m'                             => 'Legacy events section',
+				'/^### Corrections and exceptional transitions\s*$/m'  => 'corrections section',
+				'/^### Evidence before `VERIFIED` or `COMPLETE`\s*$/m' => 'evidence section',
+			) as $pattern => $label
+		) {
+			if ( ! preg_match( $pattern, $policy ) ) {
+				$errors[] = 'task lifecycle policy is missing ' . $label;
+			}
+		}
+		foreach ( array( 'TASK_CREATED', 'TASK_TRANSITION', 'initial_state', 'from_state', 'to_state' ) as $token ) {
+			if ( ! preg_match( '/\b' . preg_quote( $token, '/' ) . '\b/', $policy ) ) {
+				$errors[] = 'task lifecycle policy is missing ' . $token;
+			}
+		}
+		list( $transitions, $parse_errors ) = $this->parsePolicyTransitions( $policy );
+		$errors = array_merge( $errors, $parse_errors );
+		if ( is_array( $transitions ) ) {
+			$errors = array_merge( $errors, $this->validateTransitionTableContract( $transitions ) );
+		}
+		return $errors;
+	}
+
+	private function validateTransitionTableCompleteness(): array {
+		$errors = array();
+		foreach ( self::TASK_STATES as $from ) {
+			foreach ( self::TASK_STATES as $to ) {
+				$expected = in_array( $to, self::TRANSITIONS[ $from ] ?? array(), true );
+				if ( $expected !== $this->isTransitionAllowed( $from, $to ) ) {
+					$errors[] = 'transition table fallback mismatch for ' . $from . ' -> ' . $to;
+				}
+			}
+		}
+		if ( $this->isTransitionAllowed( 'REJECTED', 'SUPERSEDED' ) ) {
+			$errors[] = 'terminal REJECTED state must not transition to SUPERSEDED';
+		}
+		if ( $this->isTransitionAllowed( 'DONE', 'COMPLETE' ) ) {
+			$errors[] = 'unknown source state must not be accepted';
+		}
+		return $errors;
+	}
+
+	private function loadEvents(): array {
+		$log = $this->loadYaml( $this->root . '/.agents/state/event-log.yaml' );
+		return is_array( $log['events'] ?? null ) ? $log['events'] : array();
+	}
+
+	/** @return list<array{path:string,task:array<string,mixed>}> */
+	private function loadTaskRecords(): array {
+		$records = array();
+		$dir = $this->root . '/.agents/state';
+		if ( ! is_dir( $dir ) ) {
+			return $records;
+		}
+		$iterator = new RecursiveIteratorIterator(
+			new RecursiveDirectoryIterator( $dir, FilesystemIterator::SKIP_DOTS )
+		);
+		foreach ( $iterator as $file ) {
+			if ( ! $file->isFile() || ! preg_match( '/\.task\.yaml$/', $file->getFilename() ) ) {
+				continue;
+			}
+			$task = $this->loadYaml( $file->getPathname() );
+			if ( is_array( $task ) && ! empty( $task['id'] ) ) {
+				$records[] = array( 'path' => $file->getPathname(), 'task' => $task );
+			}
+		}
+		return $records;
+	}
+
+	private function checkTaskContractIntegrity(): void {
+		$records = $this->loadTaskRecords();
+		$known = array();
+		$errors = array();
+		foreach ( $records as $record ) {
+			$id = (string) ( $record['task']['id'] ?? '' );
+			if ( isset( $known[ $id ] ) ) {
+				$errors[] = 'duplicate task id: ' . $id;
+			}
+			$known[ $id ] = true;
+		}
+		$knownIds = array_keys( $known );
+		foreach ( $records as $record ) {
+			$prefix = $this->relative( $record['path'] ) . ': ';
+			foreach ( $this->validateTask( $record['task'], $knownIds ) as $error ) {
+				$errors[] = $prefix . $error;
+			}
+			foreach ( $this->validateTaskApprovalGates( $record['task'] ) as $error ) {
+				$errors[] = $prefix . $error;
+			}
+		}
+		$errors = array_merge( $errors, $this->validateApprovalEvidence( $records, $this->loadEvents() ) );
+		if ( array() !== $errors ) {
+			foreach ( $errors as $error ) {
+				$this->error( 'task contract integrity: ' . $error );
+			}
+			return;
+		}
+		$this->pass( 'task contract integrity: ' . count( $records ) . ' task(s) validated' );
+	}
+
+	private function validateTaskApprovalGates(array $task): array {
+		$errors = array();
+		$id = (string) ( $task['id'] ?? 'task' );
+		$status = (string) ( $task['status'] ?? '' );
+		$approvals = is_array( $task['approvals'] ?? null ) ? $task['approvals'] : array();
+		$security = (string) ( $approvals['security'] ?? 'required' );
+		$integration = (string) ( $approvals['integration'] ?? 'required' );
+		if ( in_array( $status, array( 'INTEGRATION_READY', 'INTEGRATING', 'INTEGRATED', 'VERIFIED', 'COMPLETE' ), true )
+			&& ! in_array( $security, array( 'approved', 'not-required' ), true ) ) {
+			$errors[] = $id . ' cannot be ' . $status . ' with security approval ' . $security;
+		}
+		if ( in_array( $status, array( 'INTEGRATING', 'INTEGRATED', 'VERIFIED', 'COMPLETE' ), true )
+			&& ! in_array( $integration, array( 'approved', 'not-required' ), true ) ) {
+			$errors[] = $id . ' cannot be ' . $status . ' with integration approval ' . $integration;
+		}
+		return $errors;
+	}
+
+	private function validateApprovalEvidence(array $records, array $events): array {
+		$errors = array();
+		foreach ( $records as $record ) {
+			$task = $record['task'];
+			$id = (string) ( $task['id'] ?? '' );
+			$approvals = is_array( $task['approvals'] ?? null ) ? $task['approvals'] : array();
+			foreach ( self::APPROVAL_GATES as $gate ) {
+				if ( 'approved' !== ( $approvals[ $gate ] ?? '' ) ) {
+					continue;
+				}
+				$found = false;
+				foreach ( $events as $event ) {
+					if ( ! is_array( $event ) ) {
+						continue;
+					}
+					if ( ! in_array( (string) ( $event['type'] ?? '' ), self::APPROVAL_EVENT_TYPES, true ) ) {
+						continue;
+					}
+					if ( $id !== (string) ( $event['task_id'] ?? '' ) ) {
+						continue;
+					}
+					if ( ! in_array( (string) ( $event['actor'] ?? '' ), self::APPROVERS, true ) ) {
+						continue;
+					}
+					$description = (string) ( $event['description'] ?? '' );
+					$hasNegation = false;
+					foreach ( array( 'pending', 'not ', 'rejected', 'disapproved', 'denied', 'refused', 'withheld' ) as $negation ) {
+						if ( false !== stripos( $description, $negation ) ) {
+							$hasNegation = true;
+							break;
+						}
+					}
+					if ( $hasNegation
+						|| ! preg_match( '/\b' . preg_quote( $gate, '/' ) . '\b/i', $description )
+						|| ! preg_match( '/\bapproved\b/i', $description ) ) {
+						continue;
+					}
+					$found = true;
+					break;
+				}
+				if ( ! $found ) {
+					$errors[] = $id . ' has approvals.' . $gate . '=approved without a valid APPROVAL_RECORDED event';
+				}
+			}
+		}
+		return $errors;
+	}
+
+	private function checkTaskTransitionConsistency(): void {
+		$records = $this->loadTaskRecords();
+		$tasks = array();
+		foreach ( $records as $record ) {
+			$tasks[ (string) $record['task']['id'] ] = $record['task'];
+		}
+		list( $errors, $checked ) = $this->validateTaskTransitionConsistency( $tasks, $this->loadEvents() );
+		if ( array() !== $errors ) {
+			foreach ( $errors as $error ) {
+				$this->error( 'task transition consistency: ' . $error );
+			}
+			return;
+		}
+		$this->pass( 'task transition consistency: ' . $checked . ' task(s) checked' );
+	}
+
+	private function isValidTimestamp(string $timestamp): bool {
+		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/', $timestamp ) ) {
+			return false;
+		}
+		try {
+			$dt = new DateTimeImmutable( str_replace( 'Z', '+00:00', $timestamp ) );
+		} catch ( Throwable $e ) {
+			return false;
+		}
+		return $dt->format( 'Y-m-d' ) === substr( $timestamp, 0, 10 )
+			&& $dt->format( 'H:i:s' ) === substr( $timestamp, 11, 8 );
+	}
+
+	/**
+	 * @param  array<string, array<string,mixed>>  $tasks
+	 * @param  list<array<string,mixed>>  $events
+	 * @return array{0:list<string>,1:int} errors, checked count
+	 */
+	private function validateTaskTransitionConsistency(array $tasks, array $events): array {
+		$errors = array();
+		$creations = array();
+		$transitions = array();
+		foreach ( $events as $event ) {
+			if ( ! is_array( $event ) ) {
+				continue;
+			}
+			$type = (string) ( $event['type'] ?? '' );
+			$task_id = (string) ( $event['task_id'] ?? '' );
+			$event_id = (string) ( $event['id'] ?? 'event' );
+			if ( ! isset( $tasks[ $task_id ] ) ) {
+				if ( in_array( $type, array_merge( self::TRANSITION_EVENT_TYPES, self::CREATION_EVENT_TYPES ), true ) ) {
+					$errors[] = $event_id . ' references unknown task ' . $task_id;
+				}
+				continue;
+			}
+			$timestamp = (string) ( $event['timestamp'] ?? '' );
+			if ( ! $this->isValidTimestamp( $timestamp ) ) {
+				$errors[] = $event_id . ' has an invalid ISO-8601 timestamp';
+				continue;
+			}
+			$time = strtotime( str_replace( 'Z', '+00:00', $timestamp ) );
+			if ( in_array( $type, self::CREATION_EVENT_TYPES, true ) ) {
+				$initial = (string) ( $event['initial_state'] ?? '' );
+				if ( ! in_array( $initial, self::TASK_STATES, true ) ) {
+					$errors[] = $event_id . ' has invalid initial_state ' . $initial;
+					continue;
+				}
+				if ( 'PROPOSED' !== $initial ) {
+					$errors[] = $event_id . ' must create task ' . $task_id . ' in PROPOSED';
+				}
+				$creations[ $task_id ][] = array( 'id' => $event_id, 'time' => $time, 'initial' => $initial );
+				continue;
+			}
+			if ( in_array( $type, self::TRANSITION_EVENT_TYPES, true ) ) {
+				$from = (string) ( $event['from_state'] ?? '' );
+				$to = (string) ( $event['to_state'] ?? '' );
+				if ( ! in_array( $from, self::TASK_STATES, true ) ) {
+					$errors[] = $event_id . ' has invalid from_state ' . $from;
+					continue;
+				}
+				if ( ! in_array( $to, self::TASK_STATES, true ) ) {
+					$errors[] = $event_id . ' has invalid to_state ' . $to;
+					continue;
+				}
+				if ( ! $this->isTransitionAllowed( $from, $to ) ) {
+					$errors[] = $event_id . ' has invalid lifecycle transition ' . $from . ' -> ' . $to;
+				}
+				$transitions[ $task_id ][] = array( 'id' => $event_id, 'time' => $time, 'from' => $from, 'to' => $to );
+			}
+		}
+		foreach ( $tasks as $task_id => $task ) {
+			$status = (string) ( $task['status'] ?? '' );
+			if ( ! in_array( $status, self::TASK_STATES, true ) ) {
+				$errors[] = 'task ' . $task_id . ' has invalid declared status ' . $status;
+				continue;
+			}
+			if ( ! isset( $creations[ $task_id ] ) || array() === $creations[ $task_id ] ) {
+				$errors[] = 'task ' . $task_id . ' is missing TASK_CREATED';
+				continue;
+			}
+			if ( count( $creations[ $task_id ] ) > 1 ) {
+				$errors[] = 'task ' . $task_id . ' has duplicate TASK_CREATED events';
+				continue;
+			}
+			$created = $creations[ $task_id ][0];
+			$chain = $transitions[ $task_id ] ?? array();
+			usort( $chain, static function ( array $a, array $b ): int { return $a['time'] <=> $b['time']; } );
+			foreach ( $chain as $transition ) {
+				if ( $transition['time'] < $created['time'] ) {
+					$errors[] = 'task ' . $task_id . ' transition ' . $transition['id'] . ' precedes creation';
+				}
+			}
+			if ( array() === $chain ) {
+				if ( 'PROPOSED' !== $status ) {
+					$errors[] = 'task ' . $task_id . ' declares status ' . $status . ' but has no transitions from PROPOSED';
+				}
+				continue;
+			}
+			$expectedFrom = 'PROPOSED';
+			$last = end( $chain );
+			$latest = array_values( array_filter( $chain, static function ( array $entry ) use ( $last ): bool { return $entry['time'] === $last['time']; } ) );
+			if ( count( $latest ) > 1 ) {
+				$errors[] = 'task ' . $task_id . ' has ambiguous latest transitions at the same timestamp';
+				continue;
+			}
+			foreach ( $chain as $transition ) {
+				if ( $transition['from'] !== $expectedFrom ) {
+					$errors[] = 'task ' . $task_id . ' has a broken transition chain at ' . $transition['id'];
+					break;
+				}
+				$expectedFrom = $transition['to'];
+			}
+			if ( $last['to'] !== $status ) {
+				$errors[] = 'task ' . $task_id . ' declares status ' . $status . ' but latest transition results in ' . $last['to'];
+			}
+		}
+		return array( $errors, count( $tasks ) );
+	}
+
 	private function validateEventLog(array $log): array {
 		$errors = array();
 		if ( 1 !== (int) ( $log['version'] ?? 0 ) ) {
@@ -992,6 +1766,7 @@ final class GovernanceValidator {
 			return array_merge( $errors, array( 'events must be an array' ) );
 		}
 		$ids = array();
+		$previousTime = null;
 		foreach ( $log['events'] as $index => $event ) {
 			$label = 'event ' . ( $index + 1 );
 			if ( ! is_array( $event ) ) {
@@ -1001,6 +1776,11 @@ final class GovernanceValidator {
 			foreach ( array( 'id', 'timestamp', 'actor', 'task_id', 'type', 'description' ) as $key ) {
 				if ( empty( $event[ $key ] ) ) {
 					$errors[] = $label . ' missing ' . $key;
+				}
+			}
+			foreach ( array_keys( $event ) as $key ) {
+				if ( ! in_array( $key, self::EVENT_KEYS, true ) ) {
+					$errors[] = $label . ' unknown property ' . $key;
 				}
 			}
 			if ( ! empty( $event['id'] ) ) {
@@ -1014,6 +1794,64 @@ final class GovernanceValidator {
 			}
 			if ( ! empty( $event['type'] ) && ! preg_match( '/^[A-Z][A-Z0-9_]+$/', (string) $event['type'] ) ) {
 				$errors[] = $label . ' invalid type';
+			}
+			if ( ! empty( $event['timestamp'] ) && ! $this->isValidTimestamp( (string) $event['timestamp'] ) ) {
+				$errors[] = $label . ' timestamp is not a valid ISO-8601 date/time';
+			}
+			$currentTime = empty( $event['timestamp'] ) ? null : strtotime( str_replace( 'Z', '+00:00', (string) $event['timestamp'] ) );
+			if ( null !== $currentTime && null !== $previousTime && $currentTime < $previousTime ) {
+				$errors[] = $label . ' timestamp is out of chronological order';
+			}
+			if ( null !== $currentTime ) {
+				$previousTime = $currentTime;
+			}
+			$type      = isset( $event['type'] ) && is_string( $event['type'] ) ? $event['type'] : '';
+			$has_from  = array_key_exists( 'from_state', $event );
+			$has_to    = array_key_exists( 'to_state', $event );
+			$valid_from = $has_from && is_string( $event['from_state'] ) && in_array( $event['from_state'], self::TASK_STATES, true );
+			$valid_to   = $has_to && is_string( $event['to_state'] ) && in_array( $event['to_state'], self::TASK_STATES, true );
+			$event_ref  = $label;
+			if ( ! empty( $event['id'] ) ) {
+				$event_ref .= ' ' . $event['id'];
+			}
+			if ( ! empty( $event['task_id'] ) ) {
+				$event_ref .= ' task ' . $event['task_id'];
+			}
+
+			$hasInitial = array_key_exists( 'initial_state', $event );
+			$validInitial = $hasInitial && is_string( $event['initial_state'] ) && in_array( $event['initial_state'], self::TASK_STATES, true );
+			if ( in_array( $type, self::CREATION_EVENT_TYPES, true ) ) {
+				if ( ! $hasInitial ) {
+					$errors[] = $event_ref . ' missing initial_state';
+				} elseif ( ! $validInitial ) {
+					$errors[] = $event_ref . ' invalid initial_state';
+				} elseif ( 'PROPOSED' !== $event['initial_state'] ) {
+					$errors[] = $event_ref . ' initial_state must be PROPOSED';
+				}
+				if ( $has_from || $has_to ) {
+					$errors[] = $event_ref . ' TASK_CREATED must not contain from_state or to_state';
+				}
+			} elseif ( $hasInitial ) {
+				$errors[] = $event_ref . ' initial_state is only allowed on TASK_CREATED events';
+			}
+			if ( in_array( $type, self::TRANSITION_EVENT_TYPES, true ) ) {
+				if ( ! $has_from ) {
+					$errors[] = $event_ref . ' missing from_state';
+				}
+				if ( ! $has_to ) {
+					$errors[] = $event_ref . ' missing to_state';
+				}
+				if ( $has_from && ! $valid_from ) {
+					$errors[] = $event_ref . ' invalid from_state ' . ( is_scalar( $event['from_state'] ) ? (string) $event['from_state'] : gettype( $event['from_state'] ) );
+				}
+				if ( $has_to && ! $valid_to ) {
+					$errors[] = $event_ref . ' invalid to_state ' . ( is_scalar( $event['to_state'] ) ? (string) $event['to_state'] : gettype( $event['to_state'] ) );
+				}
+				if ( $valid_from && $valid_to && ! $this->isTransitionAllowed( $event['from_state'], $event['to_state'] ) ) {
+					$errors[] = $event_ref . ' invalid lifecycle transition ' . $event['from_state'] . ' -> ' . $event['to_state'];
+				}
+			} elseif ( $has_from || $has_to ) {
+				$errors[] = $event_ref . ' transition fields are only allowed on TASK_TRANSITION events';
 			}
 		}
 		return $errors;
@@ -1089,6 +1927,23 @@ final class GovernanceValidator {
 			return true;
 		}
 		return 0 === strpos( $a, $b . '/' ) || 0 === strpos( $b, $a . '/' );
+	}
+
+	/**
+	 * Component-aware containment using the same semantics as Scope Guard:
+	 * an allowed path matches the same path or any descendant separated by
+	 * "/". A trailing slash in a contract is the conventional way to mark a
+	 * directory but is not required by this function; every allowed path is
+	 * treated as a prefix boundary. Substring/prefix confusion such as
+	 * `src/store` vs `src/store-old` is rejected by requiring a `/` boundary.
+	 */
+	private function pathWithinScope(string $allowed, string $path): bool {
+		$allowed = rtrim( str_replace( '\\', '/', trim( $allowed ) ), '/' );
+		$path    = rtrim( str_replace( '\\', '/', trim( $path ) ), '/' );
+		if ( '' === $allowed || '' === $path ) {
+			return false;
+		}
+		return $allowed === $path || 0 === strpos( $path, $allowed . '/' );
 	}
 
 	private function loadYaml(string $path): array {

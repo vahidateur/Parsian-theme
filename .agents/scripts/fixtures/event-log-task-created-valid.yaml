@@ -1,0 +1,17 @@
+version: 1
+events:
+  - id: "EV-9301"
+    timestamp: "2026-01-01T00:00:00+00:00"
+    actor: "orchestrator"
+    task_id: "TASK-CREATE-001"
+    type: "TASK_CREATED"
+    description: "Task created"
+    initial_state: "PROPOSED"
+  - id: "EV-9302"
+    timestamp: "2026-01-02T00:00:00+00:00"
+    actor: "orchestrator"
+    task_id: "TASK-CREATE-001"
+    type: "TASK_TRANSITION"
+    description: "State changed"
+    from_state: "PROPOSED"
+    to_state: "SPECIFIED"

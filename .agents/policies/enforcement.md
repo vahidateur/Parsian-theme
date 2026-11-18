@@ -40,19 +40,19 @@ php .agents/scripts/validate-governance.php --self-test
 | Permission enum | `SCRIPT_VALIDATED` in task contracts |
 | Dependency ID shape and self-reference | `SCRIPT_VALIDATED`; full graph is `ORCHESTRATOR_ENFORCED` |
 | Ownership duplicate/overlap/forbidden paths | `SCRIPT_VALIDATED` on the registry |
-| Task-state transition table | `SCRIPT_VALIDATED` in the validator self-test; runtime transitions are `ORCHESTRATOR_ENFORCED` |
+| Task creation and transition table | `SCRIPT_VALIDATED` for event schema, event log, and task contracts; human approval remains `DOCUMENTED` |
 | Single-writer behavior | `DOCUMENTED` + `ORCHESTRATOR_ENFORCED`; not filesystem-enforced |
 | Worktree isolation | `DOCUMENTED`; no worktree/ACL enforcement added |
-| Human approval gates | `DOCUMENTED`; no tool-level gate added |
-| Git/GitHub branch protection | Not verified; not `GIT_ENFORCED`/`GITHUB_ENFORCED` |
+| Human approval gates | `DOCUMENTED`; approval evidence is `SCRIPT_VALIDATED` through `APPROVAL_RECORDED` events, but the human decision remains external |
+| Git/GitHub branch protection | Not enabled by this work; not `GIT_ENFORCED`/`GITHUB_ENFORCED` |
 | Secret isolation | `DOCUMENTED`; no secret scanner added |
 
 ## Limitations
 
 - YAML ownership entries do not prevent another process from editing a file.
 - The validator is structural; it does not execute tests or inspect application behavior.
-- The validator does not enforce approvals, worktrees, or tool permissions.
-- No CI job is added by this baseline.
+- The validator checks approval evidence but cannot make or replace a human approval decision.
+- A governance CI workflow is prepared at `.github/workflows/governance.yml`; it is not a required check until the owner configures GitHub settings.
 - No claim is made that multi-agent execution is technically enforced.
 
 ## Related

@@ -1,0 +1,10 @@
+version: 1
+events:
+  - id: "EV-9005"
+    timestamp: "2026-11-15T12:33:00+03:30"
+    actor: "orchestrator"
+    task_id: "TASK-900"
+    type: "TASK_TRANSITION"
+    description: "Rejected because DONE is not a lifecycle state."
+    from_state: "INTEGRATED"
+    to_state: "DONE"

@@ -1,0 +1,16 @@
+version: 1
+events:
+  - id: "EV-9307"
+    timestamp: "2026-01-01T00:00:00+00:00"
+    actor: "orchestrator"
+    task_id: "TASK-CREATE-005"
+    type: "TASK_CREATED"
+    description: "Task created"
+    initial_state: "PROPOSED"
+  - id: "EV-9308"
+    timestamp: "2026-01-02T00:00:00+00:00"
+    actor: "orchestrator"
+    task_id: "TASK-CREATE-005"
+    type: "TASK_CREATED"
+    description: "Task created again"
+    initial_state: "PROPOSED"

@@ -1,0 +1,10 @@
+version: 1
+events:
+  - id: "EV-9012"
+    timestamp: "now"
+    actor: "orchestrator"
+    task_id: "TASK-900"
+    type: "TASK_TRANSITION"
+    description: "Rejected because timestamps must be ISO-8601, not relative time."
+    from_state: "INTEGRATED"
+    to_state: "VERIFIED"
