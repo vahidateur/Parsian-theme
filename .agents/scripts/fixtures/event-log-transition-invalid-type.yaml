@@ -1,0 +1,10 @@
+version: 1
+events:
+  - id: "EV-9009"
+    timestamp: "2026-11-15T12:37:00+03:30"
+    actor: "orchestrator"
+    task_id: "TASK-900"
+    type: "TASK_TRANSITION"
+    description: "Rejected because from_state is not a string lifecycle state."
+    from_state: 123
+    to_state: "VERIFIED"

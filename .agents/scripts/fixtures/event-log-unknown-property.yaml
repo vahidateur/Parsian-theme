@@ -1,0 +1,9 @@
+version: 1
+events:
+  - id: "EV-9008"
+    timestamp: "2026-11-15T12:36:00+03:30"
+    actor: "orchestrator"
+    task_id: "TASK-900"
+    type: "TASK_INTEGRATED"
+    description: "Rejected because the event contains an unknown property."
+    unexpected: "not allowed"

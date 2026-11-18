@@ -1,0 +1,9 @@
+version: 1
+events:
+  - id: "EV-9010"
+    timestamp: "2026-11-15T12:38:00+03:30"
+    task_id: "TASK-900"
+    type: "TASK_TRANSITION"
+    description: "Rejected because the required actor is absent."
+    from_state: "INTEGRATED"
+    to_state: "VERIFIED"

@@ -1,0 +1,10 @@
+version: 1
+events:
+  - id: "EV-9002"
+    timestamp: "2026-11-15T12:30:00+03:30"
+    actor: "orchestrator"
+    task_id: "TASK-900"
+    type: "TASK_TRANSITION"
+    description: "Record a complete valid lifecycle transition."
+    from_state: "INTEGRATED"
+    to_state: "VERIFIED"

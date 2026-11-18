@@ -9,7 +9,7 @@ entries:
     base_commit: "0000000000000000000000000000000000000000"
     status: "active"
     lease_started_at: "2026-11-13T00:00:00+03:30"
-    lease_expires_at: "2026-11-14T00:00:00+03:30"
+    lease_expires_at: "2099-01-01T00:00:00+03:30"
     last_heartbeat_at: "2026-11-13T00:00:00+03:30"
     dependencies: []
     integration_status: "pending"
@@ -21,7 +21,7 @@ entries:
     base_commit: "1111111111111111111111111111111111111111"
     status: "active"
     lease_started_at: "2026-11-13T00:00:00+03:30"
-    lease_expires_at: "2026-11-14T00:00:00+03:30"
+    lease_expires_at: "2099-01-01T00:00:00+03:30"
     last_heartbeat_at: "2026-11-13T00:00:00+03:30"
     dependencies: []
     integration_status: "pending"

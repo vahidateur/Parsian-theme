@@ -1,0 +1,10 @@
+version: 1
+events:
+  - id: "EV-9011"
+    timestamp: "2026-11-16T10:30:00+03:30"
+    actor: "orchestrator"
+    task_id: "TASK-900"
+    type: "TASK_TRANSITION"
+    description: "Rejected because REJECTED is terminal and has no SUPERSEDED transition in the policy."
+    from_state: "REJECTED"
+    to_state: "SUPERSEDED"

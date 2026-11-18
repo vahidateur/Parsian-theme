@@ -53,7 +53,7 @@ php .agents/scripts/validate-governance.php --all
 php .agents/scripts/validate-governance.php --self-test
 ```
 
-The validator checks document presence, internal references, decision identifiers, schema/template shape, ownership collisions, task fields, dependencies, transitions, protected-work state, and whether `.agents/` is accidentally ignored. It is a structural validator, not a full orchestration engine.
+The validator checks document presence, internal references, decision identifiers, schema/template shape, complete task contracts, task creation/transition chains, ownership authority and collisions, approval evidence, dependencies, protected-work state, and whether `.agents/` is accidentally ignored. It is a structural validator, not a full orchestration engine. A Scope Guard regression suite and governance CI workflow are prepared but are not GitHub-required checks until the owner configures branch protection.
 
 ## Enforcement labels
 

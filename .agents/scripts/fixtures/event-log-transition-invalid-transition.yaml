@@ -1,0 +1,10 @@
+version: 1
+events:
+  - id: "EV-9006"
+    timestamp: "2026-11-15T12:34:00+03:30"
+    actor: "orchestrator"
+    task_id: "TASK-900"
+    type: "TASK_TRANSITION"
+    description: "Rejected because PROPOSED cannot transition directly to COMPLETE."
+    from_state: "PROPOSED"
+    to_state: "COMPLETE"

@@ -1,6 +1,6 @@
 # File Ownership and Leases
 
-**Enforcement:** `DOCUMENTED` + `ORCHESTRATOR_ENFORCED`; structural checks are `SCRIPT_VALIDATED`. YAML entries do not prevent writes by themselves.
+**Enforcement:** `DOCUMENTED` + `ORCHESTRATOR_ENFORCED`; structural checks are `SCRIPT_VALIDATED`. The validator rejects active leases that reference unknown tasks, lack `WRITE_SCOPED`/`INTEGRATE` authority, or whose path is outside the owning task's `scope.allowed`. Containment uses component-aware prefixes: an allowed path matches the same path or any descendant separated by `/` (a trailing slash is the conventional way to mark a directory). Substring/prefix confusion such as `src/store` vs `src/store-old` is rejected. YAML entries do not prevent writes by themselves.
 
 ## Purpose
 

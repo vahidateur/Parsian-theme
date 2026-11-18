@@ -1,0 +1,10 @@
+version: 1
+events:
+  - id: "EV-9306"
+    timestamp: "2026-01-02T00:00:00+00:00"
+    actor: "orchestrator"
+    task_id: "TASK-CREATE-004"
+    type: "TASK_TRANSITION"
+    description: "State changed"
+    from_state: "PROPOSED"
+    to_state: "SPECIFIED"

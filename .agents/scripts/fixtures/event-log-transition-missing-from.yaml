@@ -1,0 +1,9 @@
+version: 1
+events:
+  - id: "EV-9003"
+    timestamp: "2026-11-15T12:31:00+03:30"
+    actor: "orchestrator"
+    task_id: "TASK-900"
+    type: "TASK_TRANSITION"
+    description: "Rejected because from_state is absent."
+    to_state: "VERIFIED"

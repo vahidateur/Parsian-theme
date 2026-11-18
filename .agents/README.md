@@ -121,7 +121,7 @@ The new register is [state/protected-work.yaml](state/protected-work.yaml). It s
 |---|---|---|
 | `DOCUMENTED` | Written rule only | Role responsibilities, ownership policy, lifecycle policy |
 | `ORCHESTRATOR_ENFORCED` | Procedural coordination by the Orchestrator | Task assignment, ownership grant/release, integration order |
-| `SCRIPT_VALIDATED` | Checked by `validate-governance.php` | Required files, links, decision IDs, ownership collisions, task fields, transitions, dependencies |
+| `SCRIPT_VALIDATED` | Checked by `validate-governance.php` | Required files, links, decision IDs, ownership collisions, complete task contracts, task creation/transition chains, approval evidence, dependencies |
 | `WORKSPACE_ENFORCED` | Enforced by worktree isolation and scoped agent access | Separate writable worktrees per task |
 | `GIT_ENFORCED` | Enforced by Git configuration or branch protection | None added by this baseline |
 | `GITHUB_ENFORCED` | Enforced by GitHub rulesets or branch protection | None verified or changed by this baseline |
@@ -146,7 +146,9 @@ Acceptance evidence for this baseline:
 - [x] Task template and valid fixture pass.
 - [x] Missing acceptance criteria, invalid permissions, and missing dependencies are rejected.
 - [x] Duplicate and overlapping ownership fixtures are rejected.
-- [x] Invalid task-state transitions are rejected.
+- [x] Missing `TASK_CREATED`, duplicate creation, and invalid task-state transitions are rejected.
+- [x] Active ownership leases are bound to known tasks with valid write/integration authority.
+- [x] Approval evidence is checked for approved gates; gates are not inferred from status.
 - [x] Protected-work register is empty and `WP_002` is explicitly marked not applicable.
 - [x] `.agents/` is not ignored by Git.
 - [x] No application runtime, release, database, backup, or dashboard file was modified.
@@ -155,11 +157,11 @@ Acceptance evidence for this baseline:
 
 ```text
 php .agents/scripts/validate-governance.php --all --bootstrap
-RESULT: PASS — governance (15 checks)
-RESULT: PASS — self-test (16 checks)
+RESULT: PASS — governance (17 checks)
+RESULT: PASS — self-test (82 checks)
 ```
 
-The validator is structural. It does not execute application tests, create worktrees, enforce approvals, or prevent file writes.
+The validator is structural. It does not execute application tests, create worktrees, make approval decisions, or prevent file writes. A Scope Guard regression suite (22 cases) and a governance CI workflow are prepared; neither is a GitHub-required check until the owner configures branch protection.
 
 ## Scope of this baseline
 

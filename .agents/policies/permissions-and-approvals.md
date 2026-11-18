@@ -75,7 +75,7 @@ An approval must identify:
 - The scope and conditions.
 - The expiry, if any.
 
-Approvals are recorded in the task handoff and, when material to execution, in the [event log](../state/event-log.yaml).
+Approvals are recorded in the task handoff and, when material to execution, in the [event log](../state/event-log.yaml) as `APPROVAL_RECORDED` events. An approval marked `approved` in a task contract requires a matching `APPROVAL_RECORDED` event with the same `task_id`, an authorized actor (`repository-owner`, `orchestrator`, or `security-engineer`), and a description that contains the gate name (`architecture`, `security`, or `integration`) and the word `approved`. Descriptions containing negative or pending wording (`pending`, `not `, `rejected`, `disapproved`, `denied`, `refused`, or `withheld`) do not satisfy the gate. The governance validator enforces these evidence requirements; the human approval decision itself remains external and cannot be produced by a validator. `required` is a gate, not an outcome.
 
 ## Revocation
 

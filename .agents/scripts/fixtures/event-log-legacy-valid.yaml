@@ -1,0 +1,8 @@
+version: 1
+events:
+  - id: "EV-9001"
+    timestamp: "2026-11-14T15:24:30+03:30"
+    actor: "orchestrator"
+    task_id: "PILOT-001"
+    type: "TASK_INTEGRATED"
+    description: "Legacy event without transition fields remains a valid historical record."

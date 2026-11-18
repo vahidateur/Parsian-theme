@@ -4,24 +4,199 @@
   "title": "Parsian governance event log",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "events"],
+  "required": [
+    "version",
+    "events"
+  ],
   "properties": {
-    "version": {"const": 1},
+    "version": {
+      "const": 1
+    },
     "events": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "timestamp", "actor", "task_id", "type", "description"],
+        "required": [
+          "id",
+          "timestamp",
+          "actor",
+          "task_id",
+          "type",
+          "description"
+        ],
         "properties": {
-          "id": {"type": "string", "pattern": "^EV-[0-9]{4}$"},
-          "timestamp": {"type": "string", "minLength": 1},
-          "actor": {"type": "string", "minLength": 1},
-          "task_id": {"type": "string", "minLength": 1},
-          "type": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]+$"},
-          "description": {"type": "string", "minLength": 1}
-        }
+          "id": {
+            "type": "string",
+            "pattern": "^EV-[0-9]{4}$"
+          },
+          "timestamp": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "actor": {
+            "type": "string",
+            "minLength": 1
+          },
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]+$"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "from_state": {
+            "$ref": "#/$defs/lifecycleState"
+          },
+          "to_state": {
+            "$ref": "#/$defs/lifecycleState"
+          },
+          "initial_state": {
+            "$ref": "#/$defs/lifecycleState"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "TASK_TRANSITION"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "required": [
+                "from_state",
+                "to_state"
+              ]
+            }
+          },
+          {
+            "if": {
+              "anyOf": [
+                {
+                  "required": [
+                    "from_state"
+                  ]
+                },
+                {
+                  "required": [
+                    "to_state"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "required": [
+                "from_state",
+                "to_state"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "not": {
+                    "const": "TASK_TRANSITION"
+                  }
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "from_state"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "to_state"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "TASK_CREATED"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "then": {
+              "required": [
+                "initial_state"
+              ]
+            }
+          },
+          {
+            "if": {
+              "anyOf": [
+                {
+                  "required": [
+                    "initial_state"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "properties": {
+                "type": {
+                  "const": "TASK_CREATED"
+                }
+              },
+              "required": [
+                "type"
+              ]
+            }
+          }
+        ]
       }
+    }
+  },
+  "$defs": {
+    "lifecycleState": {
+      "type": "string",
+      "enum": [
+        "PROPOSED",
+        "SPECIFIED",
+        "READY",
+        "ASSIGNED",
+        "IN_PROGRESS",
+        "IMPLEMENTATION_COMPLETE",
+        "CODE_REVIEW",
+        "QA",
+        "SECURITY_REVIEW",
+        "INTEGRATION_READY",
+        "INTEGRATING",
+        "INTEGRATED",
+        "VERIFIED",
+        "COMPLETE",
+        "BLOCKED",
+        "CANCELLED",
+        "REJECTED",
+        "SUPERSEDED"
+      ]
     }
   }
 }
