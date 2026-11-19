@@ -590,6 +590,17 @@ function pm_notify_api_request( $platform, $method, $payload = null ) {
 		$base = 'bale' === $platform ? 'https://tapi.bale.ai' : 'https://botapi.rubika.ir/v3';
 	}
 
+	// Enforce the destination policy before the token is placed in any URL.
+	$destination = pm_outbound_validate_endpoint( $base, $platform );
+	if ( is_wp_error( $destination ) ) {
+		return array(
+			'success' => false,
+			'message' => $destination->get_error_message(),
+			'body'    => array(),
+			'http'    => 0,
+		);
+	}
+
 	if ( false !== strpos( $base, '{token}' ) ) {
 		$url = str_replace( '{token}', rawurlencode( $token ), rtrim( $base, '/' ) ) . '/' . rawurlencode( $method );
 	} elseif ( 'bale' === $platform ) {
@@ -598,13 +609,14 @@ function pm_notify_api_request( $platform, $method, $payload = null ) {
 		$url = rtrim( $base, '/' ) . '/' . $token . '/' . rawurlencode( $method );
 	}
 
-	$args = array(
-		'timeout'     => 20,
-		'redirection' => 2,
-		'headers'     => array(
-			'Accept'       => 'application/json',
-			'Content-Type' => 'application/json',
-		),
+	$args = pm_outbound_safe_request_args(
+		array(
+			'timeout' => 20,
+			'headers' => array(
+				'Accept'       => 'application/json',
+				'Content-Type' => 'application/json',
+			),
+		)
 	);
 
 	if ( null !== $payload ) {

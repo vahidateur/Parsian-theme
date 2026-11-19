@@ -17,6 +17,7 @@ require_once PM_DIR . '/inc/setup.php';
 require_once PM_DIR . '/inc/widgets.php';
 require_once PM_DIR . '/inc/enqueue.php';
 require_once PM_DIR . '/inc/template-tags.php';
+require_once PM_DIR . '/inc/outbound-policy.php';
 require_once PM_DIR . '/inc/icons.php';
 require_once PM_DIR . '/inc/post-types.php';
 require_once PM_DIR . '/inc/meta-fields.php';
