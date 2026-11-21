@@ -29,6 +29,7 @@ define( 'PA_FILE', __FILE__ );
 define( 'PA_DB_VERSION', '1.0.1' );
 
 require_once PA_DIR . 'inc/contracts.php';
+require_once PA_DIR . 'inc/outbound-policy.php';
 require_once PA_DIR . 'inc/store.php';
 require_once PA_DIR . 'inc/engine.php';
 require_once PA_DIR . 'inc/bale.php';

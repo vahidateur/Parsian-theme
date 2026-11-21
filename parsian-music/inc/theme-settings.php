@@ -774,7 +774,12 @@ function pm_settings_schema() {
 						'ai_api_url'       => array(
 							'label' => 'آدرس API',
 							'type'  => 'url',
-							'desc'  => 'مثال: https://api.openai.com/v1/chat/completions',
+							'desc'  => 'مثال: https://api.openai.com/v1/chat/completions — فقط مدیران می‌توانند آدرس مقصد را تغییر دهند.',
+						),
+						'ai_allowed_hosts' => array(
+							'label' => 'دامنه های مجاز اضافی API',
+							'type'  => 'textarea',
+							'desc'  => 'یک نام دامنه در هر خط، فقط برای سرویس های سازگار با OpenAI. فقط مدیران می توانند آن را تغییر دهند.',
 						),
 						'ai_api_key'       => array(
 							'label' => 'کلید API',
@@ -996,17 +1001,16 @@ function pm_settings_sanitize_rows( $field, $value ) {
 }
 
 /**
- * Save settings.
+ * Apply submitted settings. Separated from the request handler so the
+ * authorization and destination policy can be tested without an HTTP exit.
+ *
+ * @param array $input Submitted settings.
+ * @return true
  */
-function pm_handle_theme_settings_save() {
-	if ( ! current_user_can( 'edit_theme_options' ) ) {
-		wp_die( 'شما اجازهٔ تغییر تنظیمات قالب را ندارید.', 'دسترسی غیرمجاز', array( 'response' => 403 ) );
-	}
-
-	check_admin_referer( 'pm_save_theme_settings' );
-
-	$input  = isset( $_POST['pm_settings'] ) && is_array( $_POST['pm_settings'] ) ? wp_unslash( $_POST['pm_settings'] ) : array();
-	$schema = pm_settings_schema();
+function pm_apply_theme_settings( $input ) {
+	$schema  = pm_settings_schema();
+	$protected_keys = pm_outbound_sensitive_endpoint_keys();
+	$can_manage_endpoints = current_user_can( 'manage_options' );
 
 	foreach ( $schema as $group ) {
 		if ( empty( $group['sections'] ) ) {
@@ -1017,7 +1021,52 @@ function pm_handle_theme_settings_save() {
 				continue;
 			}
 			foreach ( $section['fields'] as $key => $field ) {
-				$raw = isset( $input[ $key ] ) ? $input[ $key ] : '';
+				$submitted = array_key_exists( $key, $input );
+				$raw       = $submitted ? $input[ $key ] : '';
+
+				if ( in_array( $key, $protected_keys, true ) ) {
+					if ( ! $submitted ) {
+						// Never validate or overwrite an endpoint the form did not send.
+						continue;
+					}
+					if ( ! $can_manage_endpoints ) {
+						// A nonce never grants authorization; only a real attempt to
+						// change the endpoint is rejected so other settings stay usable.
+						if ( $submitted ) {
+							if ( 'ai_allowed_hosts' === $key ) {
+								$next    = implode( "\n", pm_outbound_parse_allowed_hosts( $raw ) );
+								$current = implode( "\n", pm_outbound_parse_allowed_hosts( (string) pm_get_option( $key, '' ) ) );
+								$changed = $next !== $current;
+							} else {
+								$changed = trim( (string) $raw ) !== trim( pm_outbound_current_endpoint( $key ) );
+							}
+							if ( $changed ) {
+								wp_die( 'فقط مدیران می توانند آدرس مقصد سرویس ها را تغییر دهند.', 'دسترسی غیرمجاز', array( 'response' => 403 ) );
+							}
+						}
+						continue;
+					}
+
+					if ( 'ai_allowed_hosts' === $key ) {
+						set_theme_mod( 'pm_ai_allowed_hosts', implode( "\n", pm_outbound_parse_allowed_hosts( $raw ) ) );
+						continue;
+					}
+
+					// An empty value reverts to the trusted built-in default.
+					if ( '' === trim( (string) $raw ) ) {
+						remove_theme_mod( 'pm_' . $key );
+						continue;
+					}
+
+					$candidate  = esc_url_raw( (string) $raw );
+					$validation = pm_outbound_validate_endpoint( $candidate, pm_outbound_provider_for_key( $key ) );
+					if ( is_wp_error( $validation ) ) {
+						wp_die( 'آدرس مقصد مجاز نیست. تغییری ذخیره نشد.', 'آدرس نامعتبر', array( 'response' => 400 ) );
+					}
+					set_theme_mod( 'pm_' . $key, $candidate );
+					continue;
+				}
+
 				if ( 'secret' === ( isset( $field['type'] ) ? $field['type'] : '' ) ) {
 					$raw = trim( (string) $raw );
 					if ( '' === $raw ) {
@@ -1030,6 +1079,20 @@ function pm_handle_theme_settings_save() {
 	}
 
 	pm_ai_build_index();
+	return true;
+}
+
+/**
+ * Save settings request handler.
+ */
+function pm_handle_theme_settings_save() {
+	if ( ! current_user_can( 'edit_theme_options' ) ) {
+		wp_die( 'شما اجازهٔ تغییر تنظیمات قالب را ندارید.', 'دسترسی غیرمجاز', array( 'response' => 403 ) );
+	}
+	check_admin_referer( 'pm_save_theme_settings' );
+
+	$input = isset( $_POST['pm_settings'] ) && is_array( $_POST['pm_settings'] ) ? wp_unslash( $_POST['pm_settings'] ) : array();
+	pm_apply_theme_settings( $input );
 
 	wp_safe_redirect( pm_settings_url( array( 'pm_saved' => '1' ) ) );
 	exit;
@@ -1371,6 +1434,9 @@ function pm_render_rows_field( $key, $field, $value ) {
  * @param array  $field Field definition.
  */
 function pm_render_settings_field( $key, $field ) {
+	if ( in_array( $key, pm_outbound_sensitive_endpoint_keys(), true ) && ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
 	$value = pm_settings_value( $key );
 	$type  = isset( $field['type'] ) ? $field['type'] : 'text';
 	$wide  = in_array( $type, array( 'textarea', 'hero_title', 'image', 'rows' ), true );

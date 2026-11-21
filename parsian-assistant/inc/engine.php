@@ -51,6 +51,12 @@ class PA_AI_Provider implements PA_AIProviderInterface {
 		$url = trim( (string) $this->setting( 'ai_api_url', '' ) );
 		$key = $this->secret( 'ai_api_key' );
 		$model = trim( (string) $this->setting( 'ai_model', 'gpt-4o-mini' ) );
+
+		// Check the destination before the key is attached to any request.
+		$destination = pa_outbound_validate_endpoint( $url, 'ai' );
+		if ( true !== $destination ) {
+			return array( 'ok' => false, 'error' => 'endpoint' );
+		}
 		$context = '';
 		foreach ( $context_entries as $entry ) {
 			$text = isset( $entry['text'] ) ? wp_strip_all_tags( (string) $entry['text'] ) : '';
@@ -70,13 +76,15 @@ class PA_AI_Provider implements PA_AIProviderInterface {
 		}
 		$response = wp_remote_post(
 			$url,
-			array(
-				'timeout' => 45,
-				'headers' => array(
-					'Content-Type'  => 'application/json',
-					'Authorization' => 'Bearer ' . $key,
-				),
-				'body'    => wp_json_encode( $payload ),
+			pa_outbound_safe_request_args(
+				array(
+					'timeout' => 45,
+					'headers' => array(
+						'Content-Type'  => 'application/json',
+						'Authorization' => 'Bearer ' . $key,
+					),
+					'body'    => wp_json_encode( $payload ),
+				)
 			)
 		);
 		if ( is_wp_error( $response ) ) {

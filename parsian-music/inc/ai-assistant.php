@@ -751,6 +751,12 @@ function pm_ai_rest_chat( $request ) {
 		return new WP_Error( 'pm_ai_setup', 'دستیار در حال آماده‌سازی است؛ لطفاً بعداً دوباره تلاش کنید.', array( 'status' => 503 ) );
 	}
 
+	// Never attach the API key before the destination has passed policy.
+	$destination = pm_outbound_validate_endpoint( $api_url, 'ai' );
+	if ( is_wp_error( $destination ) ) {
+		return $destination;
+	}
+
 	$index_status = pm_ai_index_status();
 	if ( ! $index_status['exists'] ) {
 		return new WP_Error( 'pm_ai_index', 'دستیار در حال آماده‌سازی است؛ لطفاً بعداً دوباره تلاش کنید.', array( 'status' => 503 ) );
@@ -781,15 +787,19 @@ function pm_ai_rest_chat( $request ) {
 		'max_tokens'  => 700,
 	);
 
-	$args = array(
-		'timeout' => 45,
-		'headers' => array(
-			'Content-Type'  => 'application/json',
-			'Authorization' => 'Bearer ' . $api_key,
-		),
-		'body'    => wp_json_encode( $payload ),
+	$args = pm_outbound_safe_request_args(
+		array(
+			'timeout' => 45,
+			'headers' => array(
+				'Content-Type'  => 'application/json',
+				'Authorization' => 'Bearer ' . $api_key,
+			),
+			'body'    => wp_json_encode( $payload ),
+		)
 	);
 	$args = apply_filters( 'pm_ai_request_args', $args, $payload );
+	// Re-apply transport hardening in case a filter changed it.
+	$args = pm_outbound_safe_request_args( $args );
 
 	$response = wp_remote_post( $api_url, $args );
 	if ( is_wp_error( $response ) ) {
@@ -801,7 +811,7 @@ function pm_ai_rest_chat( $request ) {
 
 	if ( $status < 200 || $status >= 300 ) {
 		$api_message = isset( $body['error']['message'] ) ? $body['error']['message'] : 'سرویس هوش مصنوعی پاسخ معتبری برنگرداند.';
-		return new WP_Error( 'pm_ai_api', $api_message, array( 'status' => 502 ) );
+		return new WP_Error( 'pm_ai_api', pm_ai_guard_response( (string) $api_message, $api_key ), array( 'status' => 502 ) );
 	}
 
 	$reply = '';

@@ -69,8 +69,12 @@ class PA_Bale_Adapter implements PA_ChannelAdapterInterface {
 		if ( function_exists( 'pm_notify_api_request' ) ) {
 			return pm_notify_api_request( 'bale', $method, $payload );
 		}
+		$destination = pa_outbound_validate_endpoint( $this->base_url(), 'bale' );
+		if ( true !== $destination ) {
+			return array( 'success' => false, 'http' => 0, 'body' => array(), 'message' => 'آدرس مقصد مجاز نیست.' );
+		}
 		$url = $this->base_url() . '/bot' . $token . '/' . rawurlencode( $method );
-		$args = array( 'timeout' => 20, 'redirection' => 2, 'headers' => array( 'Accept' => 'application/json' ) );
+		$args = pa_outbound_safe_request_args( array( 'timeout' => 20, 'headers' => array( 'Accept' => 'application/json' ) ) );
 		if ( null === $payload ) {
 			$result = $this->request( $url, $args + array( 'method' => 'GET' ) );
 		} else {
@@ -138,8 +142,12 @@ class PA_Bale_Adapter implements PA_ChannelAdapterInterface {
 		if ( function_exists( 'pm_notify_api_request' ) ) {
 			return pm_notify_api_request( 'bale', 'getUpdates' . $query, null );
 		}
+		$destination = pa_outbound_validate_endpoint( $this->base_url(), 'bale' );
+		if ( true !== $destination ) {
+			return array( 'success' => false, 'http' => 0, 'body' => array(), 'message' => 'آدرس مقصد مجاز نیست.' );
+		}
 		$url = $this->base_url() . '/bot' . $token . '/getUpdates' . $query;
-		$result = $this->request( $url, array( 'method' => 'GET', 'timeout' => 20 + absint( $timeout ) ) );
+		$result = $this->request( $url, pa_outbound_safe_request_args( array( 'method' => 'GET', 'timeout' => 20 + absint( $timeout ) ) ) );
 		if ( is_wp_error( $result ) ) {
 			return array( 'success' => false, 'http' => 0, 'body' => array(), 'message' => 'خطای ارتباط با بله.' );
 		}
