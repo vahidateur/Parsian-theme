@@ -7,6 +7,9 @@
  * Tested up to: 7.1
  * Requires PHP: 8.4.27
  * Author: Parsian Team
+ * License: Apache-2.0 OR GPL-2.0-or-later
+ * License URI: https://github.com/vahidateur/Parsian-theme/blob/main/LICENSE
+ * SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  * Text Domain: parsian-assistant
  *
  * Companion plugin to the Parsian Music Academy theme. Holds infrastructure
