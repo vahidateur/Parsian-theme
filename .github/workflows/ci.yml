@@ -126,6 +126,9 @@ jobs:
           find parsian-music parsian-assistant wp-local/tests -type f -name '*.php' -print0 \
             | xargs -0 -n1 php -l
 
+      - name: Outbound credential policy security tests
+        run: php wp-local/tests/pa-outbound-policy-test.php
+
       - name: Run PHP suites
         run: |
           for t in pa-platform-test pa-migration-test pa-assistant-test pa-bale-test pa-security-test \
