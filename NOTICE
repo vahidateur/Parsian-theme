@@ -1,0 +1,35 @@
+Parsian Music Academy Theme
+Copyright 2026 Parsian Team
+
+This repository contains original project code and assets for the Parsian Music
+Academy WordPress theme (parsian-music) and its companion plugin
+(parsian-assistant).
+
+Licensing of original project code
+----------------------------------
+Original source code authored for this project is dual-licensed at your option
+under either of the following:
+
+  1. The Apache License, Version 2.0 (see LICENSE); or
+  2. The GNU General Public License, version 2, or (at your option) any later
+     version (see LICENSE-GPL-2.0.txt).
+
+You may choose the license that best fits your distribution. The GPL option is
+provided because WordPress themes and plugins are derivative works of WordPress,
+which is distributed under GPL-2.0-or-later. The Apache License 2.0 is compatible
+with GPLv3 but not with GPLv2; the disjunctive GPL option preserves compatibility
+with WordPress distributions that require GPLv2-or-later terms.
+
+Third-party components and assets
+---------------------------------
+Third-party code, fonts, libraries, and assets are not relicensed by this
+project. Their licenses and attribution requirements are recorded in
+THIRD-PARTY-NOTICES.md.
+
+Assets whose provenance or redistribution rights could not be verified from the
+repository are excluded from the project's license grant. They must not be
+redistributed as part of an Apache-2.0 or GPL-licensed package until the
+copyright holder confirms the applicable rights. See THIRD-PARTY-NOTICES.md.
+
+This NOTICE is provided for attribution and licensing clarity. It does not
+modify the terms of either license.
